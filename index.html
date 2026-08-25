@@ -32,16 +32,30 @@
                 </h2>
 
                 <div class="p-3">
-                    <div class="flex flex-col">
-                        <label for="partSelect">
-                            Select a part:
-                        </label>
+                    <div class="p-3 flex flex-col gap-2">
+                        <div class="flex flex-col">
+                            <label for="partSelect">
+                                Select a part:
+                            </label>
 
-                        <select id="partSelect" class="p-1 font-mono rounded bg-slate-100 disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed" disabled>
-                            <option value="">
-                                Loading parts...
-                            </option>
-                        </select>
+                            <select id="partSelect" class="p-1 font-mono rounded bg-slate-100 disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed" disabled>
+                                <option value="">
+                                    Loading parts...
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col">
+                            <label for="cardSelect">
+                                Select a card:
+                            </label>
+
+                            <select id="cardSelect" class="p-1 font-mono rounded bg-slate-100 disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed" disabled>
+                                <option value="">
+                                    Choose a part first
+                                </option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </section>

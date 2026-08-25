@@ -1,6 +1,9 @@
 const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_cards_api/api/v1/cards.json";
 
 const partSelect = document.getElementById("partSelect");
+const cardSelect = document.getElementById("cardSelect");
+
+let prismCards = [];
 
 async function fetchPrismCards() {
   try {
@@ -12,17 +15,17 @@ async function fetchPrismCards() {
 
     const cards = await response.json();
 
-    const prismCards = cards.filter(function (card) {
+    prismCards = cards.filter(function (card) {
       return card.rarity === "prism";
     });
 
-    populatePartSelect(prismCards);
+    populatePartSelect();
   } catch (error) {
     console.error("Unable to load cards:", error);
   }
 }
 
-function populatePartSelect(prismCards) {
+function populatePartSelect() {
   const parts = [];
 
   prismCards.forEach(function (card) {
@@ -47,6 +50,31 @@ function populatePartSelect(prismCards) {
   });
 
   partSelect.disabled = false;
+
+  populateCardSelect(partSelect.value);
 }
+
+function populateCardSelect(part) {
+  const cardsForPart = prismCards.filter(function (card) {
+    return String(card.part) === String(part);
+  });
+
+  cardSelect.innerHTML = "";
+
+  cardsForPart.forEach(function (card) {
+    const option = document.createElement("option");
+
+    option.value = card.id;
+    option.textContent = `#${card.number} — ${card.title_jp}`;
+
+    cardSelect.appendChild(option);
+  });
+
+  cardSelect.disabled = false;
+}
+
+partSelect.addEventListener("change", function () {
+  populateCardSelect(partSelect.value);
+});
 
 fetchPrismCards();
