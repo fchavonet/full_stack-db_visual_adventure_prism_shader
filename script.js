@@ -34,13 +34,64 @@ const fragmentShaderSource = `
     precision mediump float;
 
     uniform sampler2D u_texture;
+    uniform vec2 u_resolution;
 
     varying vec2 v_uv;
 
     void main() {
-        gl_FragColor = texture2D(
+        vec4 baseColor = texture2D(
             u_texture,
             v_uv
+        );
+
+        vec2 imagePx = vec2(
+            v_uv.x * u_resolution.x,
+            (1.0 - v_uv.y) * u_resolution.y
+        );
+
+        float cellSize = 150.0;
+
+        vec2 gridOffset = vec2(
+            96.0,
+            104.0
+        );
+
+        vec2 cellCoord = (
+            imagePx - gridOffset
+        ) / cellSize;
+
+        vec2 p = fract(cellCoord) - 0.5;
+
+        float ax = abs(p.x);
+        float ay = abs(p.y);
+
+        float facetShade = 0.0;
+
+        if (ax >= ay) {
+            if (p.x >= 0.0) {
+                facetShade = 0.85;
+            } else {
+                facetShade = 0.55;
+            }
+        } else {
+            if (p.y >= 0.0) {
+                facetShade = 1.0;
+            } else {
+                facetShade = 0.70;
+            }
+        }
+
+        vec3 geometryColor = vec3(facetShade);
+
+        vec3 result = mix(
+            baseColor.rgb,
+            geometryColor,
+            0.18
+        );
+
+        gl_FragColor = vec4(
+            result,
+            baseColor.a
         );
     }
 `;
@@ -68,6 +119,11 @@ const positionLocation = gl.getAttribLocation(
 const textureLocation = gl.getUniformLocation(
   program,
   "u_texture"
+);
+
+const resolutionLocation = gl.getUniformLocation(
+  program,
+  "u_resolution"
 );
 
 const positionBuffer = gl.createBuffer();
@@ -246,6 +302,12 @@ function renderCard(image) {
   );
 
   gl.useProgram(program);
+
+  gl.uniform2f(
+    resolutionLocation,
+    glCanvas.width,
+    glCanvas.height
+  );
 
   gl.bindBuffer(
     gl.ARRAY_BUFFER,
