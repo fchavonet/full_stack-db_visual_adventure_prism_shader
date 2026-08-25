@@ -1,4 +1,4 @@
-const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_cards_api/api/v1/cards.json";
+const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_cards-api/api/v1/cards.json";
 
 const LOCAL_PRESET_KEY = "db-visual-adventure-prism-preset";
 
