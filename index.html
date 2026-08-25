@@ -66,7 +66,7 @@
                     Dragon Ball Visual Adventure Prism Shader
                 </h1>
 
-                <div class="min-h-[470px] p-4 flex justify-center items-center">
+                <div id="stage" class="min-h-[470px] p-4 flex justify-center items-center">
                     <p id="previewMessage" class="text-slate-500">
                         Loading card...
                     </p>
@@ -82,7 +82,10 @@
                 </h2>
 
                 <div class="p-3">
-                    Prism settings
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input id="motionEnabled" type="checkbox" class="accent-sky-700" checked>
+                        Enable motion
+                    </label>
                 </div>
             </section>
 

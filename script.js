@@ -4,9 +4,19 @@ const partSelect = document.getElementById("partSelect");
 const cardSelect = document.getElementById("cardSelect");
 const glCanvas = document.getElementById("glCanvas");
 const previewMessage = document.getElementById("previewMessage");
+const stage = document.getElementById("stage");
+const motionEnabled = document.getElementById("motionEnabled");
 
 let prismCards = [];
 let currentCardId = "";
+
+let cardTextureReady = false;
+
+let tiltX = 0;
+let tiltY = 0;
+
+let targetTiltX = 0;
+let targetTiltY = 0;
 
 const gl = glCanvas.getContext("webgl");
 
@@ -35,6 +45,7 @@ const fragmentShaderSource = `
 
     uniform sampler2D u_texture;
     uniform vec2 u_resolution;
+    uniform vec2 u_tilt;
 
     varying vec2 v_uv;
 
@@ -113,8 +124,8 @@ const fragmentShaderSource = `
 
         vec3 lightDirection = normalize(
             vec3(
-                -0.35,
-                0.45,
+                -0.35 + u_tilt.x * 0.75,
+                0.45 + u_tilt.y * 0.75,
                 1.0
             )
         );
@@ -172,6 +183,11 @@ const textureLocation = gl.getUniformLocation(
 const resolutionLocation = gl.getUniformLocation(
   program,
   "u_resolution"
+);
+
+const tiltLocation = gl.getUniformLocation(
+  program,
+  "u_tilt"
 );
 
 const positionBuffer = gl.createBuffer();
@@ -301,6 +317,9 @@ function displaySelectedCard(cardId) {
   });
 
   if (!selectedCard) {
+    currentCardId = "";
+    cardTextureReady = false;
+
     glCanvas.classList.add("hidden");
 
     previewMessage.classList.remove("hidden");
@@ -310,6 +329,7 @@ function displaySelectedCard(cardId) {
   }
 
   currentCardId = selectedCard.id;
+  cardTextureReady = false;
 
   glCanvas.classList.add("hidden");
 
@@ -332,6 +352,13 @@ function displaySelectedCard(cardId) {
   });
 
   image.addEventListener("error", function () {
+    if (currentCardId !== selectedCard.id) {
+      return;
+    }
+
+    cardTextureReady = false;
+
+    previewMessage.classList.remove("hidden");
     previewMessage.textContent = "Unable to load card image.";
   });
 
@@ -341,6 +368,35 @@ function displaySelectedCard(cardId) {
 function renderCard(image) {
   glCanvas.width = image.naturalWidth;
   glCanvas.height = image.naturalHeight;
+
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    cardTexture
+  );
+
+  gl.pixelStorei(
+    gl.UNPACK_FLIP_Y_WEBGL,
+    true
+  );
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    image
+  );
+
+  cardTextureReady = true;
+
+  renderScene();
+}
+
+function renderScene() {
+  if (!cardTextureReady) {
+    return;
+  }
 
   gl.viewport(
     0,
@@ -355,6 +411,12 @@ function renderCard(image) {
     resolutionLocation,
     glCanvas.width,
     glCanvas.height
+  );
+
+  gl.uniform2f(
+    tiltLocation,
+    tiltX,
+    tiltY
   );
 
   gl.bindBuffer(
@@ -382,20 +444,6 @@ function renderCard(image) {
   gl.bindTexture(
     gl.TEXTURE_2D,
     cardTexture
-  );
-
-  gl.pixelStorei(
-    gl.UNPACK_FLIP_Y_WEBGL,
-    true
-  );
-
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    image
   );
 
   gl.uniform1i(
@@ -467,6 +515,46 @@ function createProgram(vertexShader, fragmentShader) {
   return shaderProgram;
 }
 
+function updatePointer(event) {
+  if (!motionEnabled.checked) {
+    return;
+  }
+
+  const rect = stage.getBoundingClientRect();
+
+  const pointerX = (
+    event.clientX - rect.left
+  ) / rect.width;
+
+  const pointerY = (
+    event.clientY - rect.top
+  ) / rect.height;
+
+  targetTiltX = (
+    pointerX - 0.5
+  ) * 2.0;
+
+  targetTiltY = (
+    pointerY - 0.5
+  ) * 2.0;
+}
+
+function animate() {
+  const smoothing = 0.08;
+
+  tiltX += (
+    targetTiltX - tiltX
+  ) * smoothing;
+
+  tiltY += (
+    targetTiltY - tiltY
+  ) * smoothing;
+
+  renderScene();
+
+  requestAnimationFrame(animate);
+}
+
 partSelect.addEventListener("change", function () {
   populateCardSelect(partSelect.value);
 });
@@ -475,4 +563,23 @@ cardSelect.addEventListener("change", function () {
   displaySelectedCard(cardSelect.value);
 });
 
+stage.addEventListener("pointermove", function (event) {
+  updatePointer(event);
+});
+
+stage.addEventListener("pointerleave", function () {
+  targetTiltX = 0;
+  targetTiltY = 0;
+});
+
+motionEnabled.addEventListener("change", function () {
+  if (motionEnabled.checked) {
+    return;
+  }
+
+  targetTiltX = 0;
+  targetTiltY = 0;
+});
+
 fetchPrismCards();
+animate();
