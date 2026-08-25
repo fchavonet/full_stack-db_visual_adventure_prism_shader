@@ -55,8 +55,6 @@
                                     Choose a part first
                                 </option>
                             </select>
-
-
                         </div>
                     </div>
 
@@ -86,6 +84,56 @@
 
                             <input id="maskInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp">
                         </label>
+                    </div>
+
+                    <div>
+                        <h3 class="mb-1 font-bold">
+                            Preset
+                        </h3>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <button
+                                id="saveLocalButton"
+                                class="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                                type="button">
+                                Save
+                            </button>
+
+                            <button
+                                id="loadLocalButton"
+                                class="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                                type="button">
+                                Load
+                            </button>
+
+                            <button
+                                id="exportPresetButton"
+                                class="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                                type="button">
+                                <i class="bi bi-download mr-1"></i>
+                                Export
+                            </button>
+
+                            <label
+                                for="presetInput"
+                                class="px-2 py-1.5 text-center rounded bg-slate-100 hover:bg-slate-200 cursor-pointer">
+                                <i class="bi bi-upload mr-1"></i>
+                                Import
+
+                                <input
+                                    id="presetInput"
+                                    class="hidden"
+                                    type="file"
+                                    accept="application/json,.json">
+                            </label>
+                        </div>
+
+                        <button
+                            id="resetSettingsButton"
+                            class="w-full mt-2 px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                            type="button">
+                            Restore defaults
+                        </button>
                     </div>
                 </div>
             </section>

@@ -1,5 +1,7 @@
 const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_cards_api/api/v1/cards.json";
 
+const LOCAL_PRESET_KEY = "db-visual-adventure-prism-preset";
+
 const partSelect = document.getElementById("partSelect");
 const cardSelect = document.getElementById("cardSelect");
 
@@ -10,6 +12,12 @@ const stage = document.getElementById("stage");
 const maskInput = document.getElementById("maskInput");
 const maskFileName = document.getElementById("maskFileName");
 const clearMaskButton = document.getElementById("clearMaskButton");
+
+const exportPresetButton = document.getElementById("exportPresetButton");
+const presetInput = document.getElementById("presetInput");
+const saveLocalButton = document.getElementById("saveLocalButton");
+const loadLocalButton = document.getElementById("loadLocalButton");
+const resetSettingsButton = document.getElementById("resetSettingsButton");
 
 const cellSize = document.getElementById("cellSize");
 const gridOffsetX = document.getElementById("gridOffsetX");
@@ -29,6 +37,104 @@ const motionEnabled = document.getElementById("motionEnabled");
 const showMask = document.getElementById("showMask");
 const showGrid = document.getElementById("showGrid");
 const prismOnly = document.getElementById("prismOnly");
+
+const DEFAULT_SETTINGS = {
+  cellSize: 150,
+  gridOffsetX: 175,
+  gridOffsetY: 195,
+  facetSlope: 0.42,
+  intensity: 0.95,
+  saturation: 0.62,
+  gloss: 34,
+  silverFlash: 0.34,
+  broadReflection: 0.34,
+  motionAmplitude: 1,
+  smoothing: 0.075,
+  motionEnabled: true,
+  showMask: false,
+  showGrid: false,
+  prismOnly: false
+};
+
+const rangeControls = [
+  {
+    key: "cellSize",
+    input: cellSize,
+    output: document.getElementById("cellSizeValue"),
+    decimals: 0,
+    suffix: " px"
+  },
+  {
+    key: "gridOffsetX",
+    input: gridOffsetX,
+    output: document.getElementById("gridOffsetXValue"),
+    decimals: 0,
+    suffix: " px"
+  },
+  {
+    key: "gridOffsetY",
+    input: gridOffsetY,
+    output: document.getElementById("gridOffsetYValue"),
+    decimals: 0,
+    suffix: " px"
+  },
+  {
+    key: "facetSlope",
+    input: facetSlope,
+    output: document.getElementById("facetSlopeValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "intensity",
+    input: intensity,
+    output: document.getElementById("intensityValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "saturation",
+    input: saturation,
+    output: document.getElementById("saturationValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "gloss",
+    input: gloss,
+    output: document.getElementById("glossValue"),
+    decimals: 0,
+    suffix: ""
+  },
+  {
+    key: "silverFlash",
+    input: silverFlash,
+    output: document.getElementById("silverFlashValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "broadReflection",
+    input: broadReflection,
+    output: document.getElementById("broadReflectionValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "motionAmplitude",
+    input: motionAmplitude,
+    output: document.getElementById("motionAmplitudeValue"),
+    decimals: 2,
+    suffix: ""
+  },
+  {
+    key: "smoothing",
+    input: smoothing,
+    output: document.getElementById("smoothingValue"),
+    decimals: 3,
+    suffix: ""
+  }
+];
 
 let prismCards = [];
 let currentCardId = "";
@@ -1115,76 +1221,7 @@ function clearMask() {
 }
 
 function configureRangeControls() {
-  const controls = [
-    {
-      input: cellSize,
-      output: document.getElementById("cellSizeValue"),
-      decimals: 0,
-      suffix: " px"
-    },
-    {
-      input: gridOffsetX,
-      output: document.getElementById("gridOffsetXValue"),
-      decimals: 0,
-      suffix: " px"
-    },
-    {
-      input: gridOffsetY,
-      output: document.getElementById("gridOffsetYValue"),
-      decimals: 0,
-      suffix: " px"
-    },
-    {
-      input: facetSlope,
-      output: document.getElementById("facetSlopeValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: intensity,
-      output: document.getElementById("intensityValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: saturation,
-      output: document.getElementById("saturationValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: gloss,
-      output: document.getElementById("glossValue"),
-      decimals: 0,
-      suffix: ""
-    },
-    {
-      input: silverFlash,
-      output: document.getElementById("silverFlashValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: broadReflection,
-      output: document.getElementById("broadReflectionValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: motionAmplitude,
-      output: document.getElementById("motionAmplitudeValue"),
-      decimals: 2,
-      suffix: ""
-    },
-    {
-      input: smoothing,
-      output: document.getElementById("smoothingValue"),
-      decimals: 3,
-      suffix: ""
-    }
-  ];
-
-  controls.forEach(function (control) {
+  rangeControls.forEach(function (control) {
     updateRangeOutput(
       control
     );
@@ -1211,6 +1248,251 @@ function updateRangeOutput(control) {
     ) +
     control.suffix
   );
+}
+
+function updateAllRangeOutputs() {
+  rangeControls.forEach(function (control) {
+    updateRangeOutput(
+      control
+    );
+  });
+}
+
+function createPreset() {
+  return {
+    version: 1,
+    cardId: currentCardId,
+    settings: {
+      cellSize: Number(cellSize.value),
+      gridOffsetX: Number(gridOffsetX.value),
+      gridOffsetY: Number(gridOffsetY.value),
+      facetSlope: Number(facetSlope.value),
+
+      intensity: Number(intensity.value),
+      saturation: Number(saturation.value),
+      gloss: Number(gloss.value),
+      silverFlash: Number(silverFlash.value),
+      broadReflection: Number(broadReflection.value),
+
+      motionAmplitude: Number(motionAmplitude.value),
+      smoothing: Number(smoothing.value),
+
+      motionEnabled: motionEnabled.checked,
+
+      showMask: showMask.checked,
+      showGrid: showGrid.checked,
+      prismOnly: prismOnly.checked
+    }
+  };
+}
+
+function applyPreset(preset) {
+  if (!preset) {
+    return;
+  }
+
+  if (!preset.settings) {
+    return;
+  }
+
+  rangeControls.forEach(function (control) {
+    const value = preset.settings[
+      control.key
+    ];
+
+    if (typeof value !== "number") {
+      return;
+    }
+
+    control.input.value = value;
+  });
+
+  if (typeof preset.settings.motionEnabled === "boolean") {
+    motionEnabled.checked = preset.settings.motionEnabled;
+  }
+
+  if (typeof preset.settings.showMask === "boolean") {
+    showMask.checked = preset.settings.showMask;
+  }
+
+  if (typeof preset.settings.showGrid === "boolean") {
+    showGrid.checked = preset.settings.showGrid;
+  }
+
+  if (typeof preset.settings.prismOnly === "boolean") {
+    prismOnly.checked = preset.settings.prismOnly;
+  }
+
+  targetTiltX = 0;
+  targetTiltY = 0;
+
+  updateAllRangeOutputs();
+
+  if (
+    typeof preset.cardId === "string" &&
+    preset.cardId !== ""
+  ) {
+    selectCardById(
+      preset.cardId
+    );
+  }
+}
+
+function selectCardById(cardId) {
+  const card = prismCards.find(function (item) {
+    return item.id === cardId;
+  });
+
+  if (!card) {
+    return;
+  }
+
+  partSelect.value = String(
+    card.part
+  );
+
+  populateCardSelect(
+    card.part
+  );
+
+  cardSelect.value = card.id;
+
+  displaySelectedCard(
+    card.id
+  );
+}
+
+function exportPreset() {
+  const preset = createPreset();
+
+  const json = JSON.stringify(
+    preset,
+    null,
+    2
+  );
+
+  const blob = new Blob(
+    [
+      json
+    ],
+    {
+      type: "application/json"
+    }
+  );
+
+  const objectUrl = URL.createObjectURL(
+    blob
+  );
+
+  const link = document.createElement(
+    "a"
+  );
+
+  let fileName = "prism-preset.json";
+
+  if (currentCardId !== "") {
+    fileName = `${currentCardId}-prism-preset.json`;
+  }
+
+  link.href = objectUrl;
+  link.download = fileName;
+
+  document.body.appendChild(
+    link
+  );
+
+  link.click();
+
+  document.body.removeChild(
+    link
+  );
+
+  URL.revokeObjectURL(
+    objectUrl
+  );
+}
+
+async function importPreset(file) {
+  try {
+    const content = await file.text();
+
+    const preset = JSON.parse(
+      content
+    );
+
+    applyPreset(
+      preset
+    );
+  } catch (error) {
+    console.error(
+      "Unable to import preset:",
+      error
+    );
+  }
+
+  presetInput.value = "";
+}
+
+function saveLocalPreset() {
+  try {
+    const preset = createPreset();
+
+    localStorage.setItem(
+      LOCAL_PRESET_KEY,
+      JSON.stringify(
+        preset
+      )
+    );
+  } catch (error) {
+    console.error(
+      "Unable to save preset:",
+      error
+    );
+  }
+}
+
+function loadLocalPreset() {
+  try {
+    const content = localStorage.getItem(
+      LOCAL_PRESET_KEY
+    );
+
+    if (!content) {
+      return;
+    }
+
+    const preset = JSON.parse(
+      content
+    );
+
+    applyPreset(
+      preset
+    );
+  } catch (error) {
+    console.error(
+      "Unable to load preset:",
+      error
+    );
+  }
+}
+
+function restoreDefaults() {
+  rangeControls.forEach(function (control) {
+    control.input.value = DEFAULT_SETTINGS[
+      control.key
+    ];
+  });
+
+  motionEnabled.checked = DEFAULT_SETTINGS.motionEnabled;
+
+  showMask.checked = DEFAULT_SETTINGS.showMask;
+  showGrid.checked = DEFAULT_SETTINGS.showGrid;
+  prismOnly.checked = DEFAULT_SETTINGS.prismOnly;
+
+  targetTiltX = 0;
+  targetTiltY = 0;
+
+  updateAllRangeOutputs();
 }
 
 function renderScene() {
@@ -1551,6 +1833,49 @@ clearMaskButton.addEventListener(
   "click",
   function () {
     clearMask();
+  }
+);
+
+exportPresetButton.addEventListener(
+  "click",
+  function () {
+    exportPreset();
+  }
+);
+
+presetInput.addEventListener(
+  "change",
+  function () {
+    const file = presetInput.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    importPreset(
+      file
+    );
+  }
+);
+
+saveLocalButton.addEventListener(
+  "click",
+  function () {
+    saveLocalPreset();
+  }
+);
+
+loadLocalButton.addEventListener(
+  "click",
+  function () {
+    loadLocalPreset();
+  }
+);
+
+resetSettingsButton.addEventListener(
+  "click",
+  function () {
+    restoreDefaults();
   }
 );
 
