@@ -65,28 +65,76 @@ const fragmentShaderSource = `
         float ax = abs(p.x);
         float ay = abs(p.y);
 
-        float facetShade = 0.0;
+        float facetSlope = 0.42;
+
+        vec3 normal = vec3(
+            0.0,
+            0.0,
+            1.0
+        );
 
         if (ax >= ay) {
             if (p.x >= 0.0) {
-                facetShade = 0.85;
+                normal = normalize(
+                    vec3(
+                        facetSlope,
+                        0.0,
+                        1.0
+                    )
+                );
             } else {
-                facetShade = 0.55;
+                normal = normalize(
+                    vec3(
+                        -facetSlope,
+                        0.0,
+                        1.0
+                    )
+                );
             }
         } else {
             if (p.y >= 0.0) {
-                facetShade = 1.0;
+                normal = normalize(
+                    vec3(
+                        0.0,
+                        facetSlope,
+                        1.0
+                    )
+                );
             } else {
-                facetShade = 0.70;
+                normal = normalize(
+                    vec3(
+                        0.0,
+                        -facetSlope,
+                        1.0
+                    )
+                );
             }
         }
 
-        vec3 geometryColor = vec3(facetShade);
+        vec3 lightDirection = normalize(
+            vec3(
+                -0.35,
+                0.45,
+                1.0
+            )
+        );
+
+        float light = max(
+            dot(
+                normal,
+                lightDirection
+            ),
+            0.0
+        );
+
+        vec3 geometryColor = vec3(
+            0.35 + light * 0.65
+        );
 
         vec3 result = mix(
             baseColor.rgb,
             geometryColor,
-            0.18
+            0.22
         );
 
         gl_FragColor = vec4(
