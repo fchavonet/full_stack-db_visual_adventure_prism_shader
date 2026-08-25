@@ -248,11 +248,22 @@ const fragmentShaderSource = `
             1.7
         );
 
+        float diagonalDistance = abs(
+            ax - ay
+        );
+
+        float diagonalLine = 1.0 - smoothstep(
+            0.0,
+            0.035,
+            diagonalDistance
+        );
+
         float foilEnergy = 0.0;
 
         foilEnergy += broadReflection * 0.42;
         foilEnergy += sharpReflection * 1.15;
         foilEnergy += grazingReflection * 0.06;
+        foilEnergy += diagonalLine * sharpReflection * 0.20;
 
         foilEnergy = clamp(
             foilEnergy,
@@ -309,6 +320,8 @@ const fragmentShaderSource = `
         );
 
         float silverFlash = sharpReflection * 0.24;
+
+        silverFlash += diagonalLine * sharpReflection * 0.12;
 
         result += vec3(
             silverFlash
