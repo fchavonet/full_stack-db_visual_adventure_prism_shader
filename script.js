@@ -49,6 +49,60 @@ const fragmentShaderSource = `
 
     varying vec2 v_uv;
 
+    vec3 spectral(float phase) {
+        float value = fract(phase);
+
+        vec3 color;
+
+        color.r = 0.52 + 0.48 * cos(
+            6.2831853 * (
+                value + 0.00
+            )
+        );
+
+        color.g = 0.52 + 0.48 * cos(
+            6.2831853 * (
+                value + 0.34
+            )
+        );
+
+        color.b = 0.52 + 0.48 * cos(
+            6.2831853 * (
+                value + 0.68
+            )
+        );
+
+        color = max(
+            color,
+            vec3(0.0)
+        );
+
+        color = pow(
+            color,
+            vec3(1.35)
+        );
+
+        return color;
+    }
+
+    float hash21(vec2 position) {
+        position = fract(
+            position * vec2(
+                123.34,
+                456.21
+            )
+        );
+
+        position += dot(
+            position,
+            position + 45.32
+        );
+
+        return fract(
+            position.x * position.y
+        );
+    }
+
     void main() {
         vec4 baseColor = texture2D(
             u_texture,
@@ -71,10 +125,21 @@ const fragmentShaderSource = `
             imagePx - gridOffset
         ) / cellSize;
 
-        vec2 p = fract(cellCoord) - 0.5;
+        vec2 cellId = floor(
+            cellCoord
+        );
 
-        float ax = abs(p.x);
-        float ay = abs(p.y);
+        vec2 p = fract(
+            cellCoord
+        ) - 0.5;
+
+        float ax = abs(
+            p.x
+        );
+
+        float ay = abs(
+            p.y
+        );
 
         float facetSlope = 0.42;
 
@@ -83,6 +148,8 @@ const fragmentShaderSource = `
             0.0,
             1.0
         );
+
+        float facetIndex = 0.0;
 
         if (ax >= ay) {
             if (p.x >= 0.0) {
@@ -93,6 +160,8 @@ const fragmentShaderSource = `
                         1.0
                     )
                 );
+
+                facetIndex = 0.00;
             } else {
                 normal = normalize(
                     vec3(
@@ -101,6 +170,8 @@ const fragmentShaderSource = `
                         1.0
                     )
                 );
+
+                facetIndex = 0.50;
             }
         } else {
             if (p.y >= 0.0) {
@@ -111,6 +182,8 @@ const fragmentShaderSource = `
                         1.0
                     )
                 );
+
+                facetIndex = 0.25;
             } else {
                 normal = normalize(
                     vec3(
@@ -119,6 +192,8 @@ const fragmentShaderSource = `
                         1.0
                     )
                 );
+
+                facetIndex = 0.75;
             }
         }
 
@@ -185,16 +260,52 @@ const fragmentShaderSource = `
             1.0
         );
 
-        vec3 silverReflection = vec3(
+        float localRamp = p.x;
+
+        if (ax >= ay) {
+            localRamp = p.y;
+        }
+
+        float cellVariation = hash21(
+            cellId
+        );
+
+        float spectralPhase = facetIndex;
+
+        spectralPhase += localRamp * 0.42;
+
+        spectralPhase += dot(
+            halfDirection.xy,
+            vec2(
+                0.32,
+                -0.28
+            )
+        );
+
+        spectralPhase += (
+            u_tilt.x - u_tilt.y
+        ) * 0.14;
+
+        spectralPhase += cellVariation * 0.08;
+
+        vec3 prismColor = spectral(
+            spectralPhase
+        );
+
+        vec3 silverColor = vec3(
             0.92,
             0.95,
             1.0
-        ) * foilEnergy;
+        );
+
+        vec3 reflectedColor = silverColor * foilEnergy;
+
+        reflectedColor += prismColor * foilEnergy * 0.28;
 
         vec3 result = 1.0 - (
             1.0 - baseColor.rgb
         ) * (
-            1.0 - silverReflection
+            1.0 - reflectedColor
         );
 
         float silverFlash = sharpReflection * 0.24;
@@ -348,7 +459,9 @@ function populatePartSelect() {
 
   partSelect.disabled = false;
 
-  populateCardSelect(partSelect.value);
+  populateCardSelect(
+    partSelect.value
+  );
 }
 
 function populateCardSelect(part) {
@@ -364,12 +477,16 @@ function populateCardSelect(part) {
     option.value = card.id;
     option.textContent = `#${card.number} — ${card.title_jp}`;
 
-    cardSelect.appendChild(option);
+    cardSelect.appendChild(
+      option
+    );
   });
 
   cardSelect.disabled = false;
 
-  displaySelectedCard(cardSelect.value);
+  displaySelectedCard(
+    cardSelect.value
+  );
 }
 
 function displaySelectedCard(cardId) {
@@ -381,9 +498,14 @@ function displaySelectedCard(cardId) {
     currentCardId = "";
     cardTextureReady = false;
 
-    glCanvas.classList.add("hidden");
+    glCanvas.classList.add(
+      "hidden"
+    );
 
-    previewMessage.classList.remove("hidden");
+    previewMessage.classList.remove(
+      "hidden"
+    );
+
     previewMessage.textContent = "No card selected.";
 
     return;
@@ -392,36 +514,57 @@ function displaySelectedCard(cardId) {
   currentCardId = selectedCard.id;
   cardTextureReady = false;
 
-  glCanvas.classList.add("hidden");
+  glCanvas.classList.add(
+    "hidden"
+  );
 
-  previewMessage.classList.remove("hidden");
+  previewMessage.classList.remove(
+    "hidden"
+  );
+
   previewMessage.textContent = "Loading card...";
 
   const image = new Image();
 
   image.crossOrigin = "anonymous";
 
-  image.addEventListener("load", function () {
-    if (currentCardId !== selectedCard.id) {
-      return;
+  image.addEventListener(
+    "load",
+    function () {
+      if (currentCardId !== selectedCard.id) {
+        return;
+      }
+
+      renderCard(
+        image
+      );
+
+      previewMessage.classList.add(
+        "hidden"
+      );
+
+      glCanvas.classList.remove(
+        "hidden"
+      );
     }
+  );
 
-    renderCard(image);
+  image.addEventListener(
+    "error",
+    function () {
+      if (currentCardId !== selectedCard.id) {
+        return;
+      }
 
-    previewMessage.classList.add("hidden");
-    glCanvas.classList.remove("hidden");
-  });
+      cardTextureReady = false;
 
-  image.addEventListener("error", function () {
-    if (currentCardId !== selectedCard.id) {
-      return;
+      previewMessage.classList.remove(
+        "hidden"
+      );
+
+      previewMessage.textContent = "Unable to load card image.";
     }
-
-    cardTextureReady = false;
-
-    previewMessage.classList.remove("hidden");
-    previewMessage.textContent = "Unable to load card image.";
-  });
+  );
 
   image.src = selectedCard.front_image_url;
 }
@@ -466,7 +609,9 @@ function renderScene() {
     glCanvas.height
   );
 
-  gl.useProgram(program);
+  gl.useProgram(
+    program
+  );
 
   gl.uniform2f(
     resolutionLocation,
@@ -520,14 +665,18 @@ function renderScene() {
 }
 
 function createShader(type, source) {
-  const shader = gl.createShader(type);
+  const shader = gl.createShader(
+    type
+  );
 
   gl.shaderSource(
     shader,
     source
   );
 
-  gl.compileShader(shader);
+  gl.compileShader(
+    shader
+  );
 
   const success = gl.getShaderParameter(
     shader,
@@ -535,11 +684,17 @@ function createShader(type, source) {
   );
 
   if (!success) {
-    const message = gl.getShaderInfoLog(shader);
+    const message = gl.getShaderInfoLog(
+      shader
+    );
 
-    gl.deleteShader(shader);
+    gl.deleteShader(
+      shader
+    );
 
-    throw new Error(message);
+    throw new Error(
+      message
+    );
   }
 
   return shader;
@@ -558,7 +713,9 @@ function createProgram(vertexShader, fragmentShader) {
     fragmentShader
   );
 
-  gl.linkProgram(shaderProgram);
+  gl.linkProgram(
+    shaderProgram
+  );
 
   const success = gl.getProgramParameter(
     shaderProgram,
@@ -566,11 +723,17 @@ function createProgram(vertexShader, fragmentShader) {
   );
 
   if (!success) {
-    const message = gl.getProgramInfoLog(shaderProgram);
+    const message = gl.getProgramInfoLog(
+      shaderProgram
+    );
 
-    gl.deleteProgram(shaderProgram);
+    gl.deleteProgram(
+      shaderProgram
+    );
 
-    throw new Error(message);
+    throw new Error(
+      message
+    );
   }
 
   return shaderProgram;
@@ -613,34 +776,57 @@ function animate() {
 
   renderScene();
 
-  requestAnimationFrame(animate);
+  requestAnimationFrame(
+    animate
+  );
 }
 
-partSelect.addEventListener("change", function () {
-  populateCardSelect(partSelect.value);
-});
-
-cardSelect.addEventListener("change", function () {
-  displaySelectedCard(cardSelect.value);
-});
-
-stage.addEventListener("pointermove", function (event) {
-  updatePointer(event);
-});
-
-stage.addEventListener("pointerleave", function () {
-  targetTiltX = 0;
-  targetTiltY = 0;
-});
-
-motionEnabled.addEventListener("change", function () {
-  if (motionEnabled.checked) {
-    return;
+partSelect.addEventListener(
+  "change",
+  function () {
+    populateCardSelect(
+      partSelect.value
+    );
   }
+);
 
-  targetTiltX = 0;
-  targetTiltY = 0;
-});
+cardSelect.addEventListener(
+  "change",
+  function () {
+    displaySelectedCard(
+      cardSelect.value
+    );
+  }
+);
+
+stage.addEventListener(
+  "pointermove",
+  function (event) {
+    updatePointer(
+      event
+    );
+  }
+);
+
+stage.addEventListener(
+  "pointerleave",
+  function () {
+    targetTiltX = 0;
+    targetTiltY = 0;
+  }
+);
+
+motionEnabled.addEventListener(
+  "change",
+  function () {
+    if (motionEnabled.checked) {
+      return;
+    }
+
+    targetTiltX = 0;
+    targetTiltY = 0;
+  }
+);
 
 fetchPrismCards();
 animate();
