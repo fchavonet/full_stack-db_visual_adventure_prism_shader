@@ -10,6 +10,12 @@ const cardShell = document.getElementById("cardShell");
 const previewMessage = document.getElementById("previewMessage");
 const stage = document.getElementById("stage");
 
+const cardImageInput = document.getElementById("cardImageInput");
+const cardImageFileName = document.getElementById("cardImageFileName");
+const clearCardImageButton = document.getElementById("clearCardImageButton");
+const cardImageThumb = document.getElementById("cardImageThumb");
+const cardImageEmpty = document.getElementById("cardImageEmpty");
+
 const maskInput = document.getElementById("maskInput");
 const maskFileName = document.getElementById("maskFileName");
 const clearMaskButton = document.getElementById("clearMaskButton");
@@ -1016,6 +1022,9 @@ function displaySelectedCard(cardId) {
     currentCardId = "";
     cardTextureReady = false;
 
+    resetCardImageControls();
+    clearMask();
+
     cardShell.classList.add(
       "hidden"
     );
@@ -1032,6 +1041,9 @@ function displaySelectedCard(cardId) {
   currentCardId = selectedCard.id;
   cardTextureReady = false;
 
+  resetCardImageControls();
+  clearMask();
+
   cardShell.classList.add(
     "hidden"
   );
@@ -1042,6 +1054,20 @@ function displaySelectedCard(cardId) {
 
   previewMessage.textContent = "Loading card...";
 
+  loadCardFromUrl(
+    selectedCard.front_image_url,
+    selectedCard
+  );
+
+  if (selectedCard.prism_mask_url) {
+    loadMaskFromUrl(
+      selectedCard.prism_mask_url,
+      selectedCard.id
+    );
+  }
+}
+
+function loadCardFromUrl(imageUrl, selectedCard) {
   const image = new Image();
 
   image.crossOrigin = "anonymous";
@@ -1056,6 +1082,12 @@ function displaySelectedCard(cardId) {
       renderCard(
         image
       );
+
+      updateCardImagePreview(
+        imageUrl
+      );
+
+      cardImageFileName.textContent = "API image";
 
       previewMessage.classList.add(
         "hidden"
@@ -1088,7 +1120,108 @@ function displaySelectedCard(cardId) {
     }
   );
 
-  image.src = selectedCard.front_image_url;
+  image.src = imageUrl;
+}
+
+function loadCardImage(file) {
+  const image = new Image();
+
+  const objectUrl = URL.createObjectURL(
+    file
+  );
+
+  image.addEventListener(
+    "load",
+    function () {
+      renderCard(
+        image
+      );
+
+      cardImageFileName.textContent = file.name;
+      clearCardImageButton.disabled = false;
+
+      updateCardImagePreview(
+        objectUrl
+      );
+
+      previewMessage.classList.add(
+        "hidden"
+      );
+
+      cardShell.classList.remove(
+        "hidden"
+      );
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+    }
+  );
+
+  image.addEventListener(
+    "error",
+    function () {
+      console.error(
+        "Unable to load card image."
+      );
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+    }
+  );
+
+  image.src = objectUrl;
+}
+
+function updateCardImagePreview(imageUrl) {
+  cardImageThumb.src = imageUrl;
+
+  cardImageEmpty.classList.add(
+    "hidden"
+  );
+
+  cardImageThumb.classList.remove(
+    "hidden"
+  );
+}
+
+function resetCardImageControls() {
+  cardImageInput.value = "";
+  cardImageFileName.textContent = "No image loaded";
+
+  cardImageThumb.removeAttribute(
+    "src"
+  );
+
+  cardImageThumb.classList.add(
+    "hidden"
+  );
+
+  cardImageEmpty.classList.remove(
+    "hidden"
+  );
+
+  clearCardImageButton.disabled = true;
+}
+
+function clearCardImage() {
+  resetCardImageControls();
+
+  const selectedCard = prismCards.find(function (card) {
+    return card.id === currentCardId;
+  });
+
+  if (!selectedCard) {
+    return;
+  }
+
+  cardTextureReady = false;
+
+  loadCardFromUrl(
+    selectedCard.front_image_url,
+    selectedCard
+  );
 }
 
 function configureTexture(texture) {
@@ -1160,32 +1293,15 @@ function loadMask(file) {
   image.addEventListener(
     "load",
     function () {
-      gl.bindTexture(
-        gl.TEXTURE_2D,
-        maskTexture
-      );
-
-      gl.pixelStorei(
-        gl.UNPACK_FLIP_Y_WEBGL,
-        true
-      );
-
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
+      renderMask(
         image
       );
-
-      maskLoaded = true;
 
       maskFileName.textContent = file.name;
       clearMaskButton.disabled = false;
 
       updateMaskPreview(
-        file
+        objectUrl
       );
 
       URL.revokeObjectURL(
@@ -1210,26 +1326,81 @@ function loadMask(file) {
   image.src = objectUrl;
 }
 
-function updateMaskPreview(file) {
-  const reader = new FileReader();
+function loadMaskFromUrl(maskUrl, cardId) {
+  const image = new Image();
 
-  reader.addEventListener(
+  image.crossOrigin = "anonymous";
+
+  image.addEventListener(
     "load",
     function () {
-      maskThumb.src = reader.result;
+      if (currentCardId !== cardId) {
+        return;
+      }
 
-      maskEmpty.classList.add(
-        "hidden"
+      renderMask(
+        image
       );
 
-      maskThumb.classList.remove(
-        "hidden"
+      maskFileName.textContent = "API mask";
+      clearMaskButton.disabled = false;
+
+      updateMaskPreview(
+        maskUrl
       );
     }
   );
 
-  reader.readAsDataURL(
-    file
+  image.addEventListener(
+    "error",
+    function () {
+      if (currentCardId !== cardId) {
+        return;
+      }
+
+      console.error(
+        "Unable to load API Prism mask."
+      );
+    }
+  );
+
+  image.src = maskUrl;
+}
+
+function renderMask(image) {
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    maskTexture
+  );
+
+  gl.pixelStorei(
+    gl.UNPACK_FLIP_Y_WEBGL,
+    true
+  );
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    image
+  );
+
+  maskLoaded = true;
+
+  renderScene();
+}
+
+function updateMaskPreview(imageUrl) {
+  maskThumb.src = imageUrl;
+
+  maskEmpty.classList.add(
+    "hidden"
+  );
+
+  maskThumb.classList.remove(
+    "hidden"
   );
 }
 
@@ -2095,6 +2266,28 @@ cardSelect.addEventListener(
     displaySelectedCard(
       cardSelect.value
     );
+  }
+);
+
+cardImageInput.addEventListener(
+  "change",
+  function () {
+    const file = cardImageInput.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    loadCardImage(
+      file
+    );
+  }
+);
+
+clearCardImageButton.addEventListener(
+  "click",
+  function () {
+    clearCardImage();
   }
 );
 
