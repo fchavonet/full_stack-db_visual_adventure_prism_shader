@@ -2,10 +2,122 @@ const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_card
 
 const partSelect = document.getElementById("partSelect");
 const cardSelect = document.getElementById("cardSelect");
-const cardPreview = document.getElementById("cardPreview");
+const glCanvas = document.getElementById("glCanvas");
 const previewMessage = document.getElementById("previewMessage");
 
 let prismCards = [];
+let currentCardId = "";
+
+const gl = glCanvas.getContext("webgl");
+
+if (!gl) {
+  throw new Error("WebGL is not supported by this browser.");
+}
+
+const vertexShaderSource = `
+    attribute vec2 a_position;
+
+    varying vec2 v_uv;
+
+    void main() {
+        v_uv = a_position * 0.5 + 0.5;
+
+        gl_Position = vec4(
+            a_position,
+            0.0,
+            1.0
+        );
+    }
+`;
+
+const fragmentShaderSource = `
+    precision mediump float;
+
+    uniform sampler2D u_texture;
+
+    varying vec2 v_uv;
+
+    void main() {
+        gl_FragColor = texture2D(
+            u_texture,
+            v_uv
+        );
+    }
+`;
+
+const vertexShader = createShader(
+  gl.VERTEX_SHADER,
+  vertexShaderSource
+);
+
+const fragmentShader = createShader(
+  gl.FRAGMENT_SHADER,
+  fragmentShaderSource
+);
+
+const program = createProgram(
+  vertexShader,
+  fragmentShader
+);
+
+const positionLocation = gl.getAttribLocation(
+  program,
+  "a_position"
+);
+
+const textureLocation = gl.getUniformLocation(
+  program,
+  "u_texture"
+);
+
+const positionBuffer = gl.createBuffer();
+
+gl.bindBuffer(
+  gl.ARRAY_BUFFER,
+  positionBuffer
+);
+
+gl.bufferData(
+  gl.ARRAY_BUFFER,
+  new Float32Array([
+    -1.0, -1.0,
+    1.0, -1.0,
+    -1.0, 1.0,
+    1.0, 1.0
+  ]),
+  gl.STATIC_DRAW
+);
+
+const cardTexture = gl.createTexture();
+
+gl.bindTexture(
+  gl.TEXTURE_2D,
+  cardTexture
+);
+
+gl.texParameteri(
+  gl.TEXTURE_2D,
+  gl.TEXTURE_WRAP_S,
+  gl.CLAMP_TO_EDGE
+);
+
+gl.texParameteri(
+  gl.TEXTURE_2D,
+  gl.TEXTURE_WRAP_T,
+  gl.CLAMP_TO_EDGE
+);
+
+gl.texParameteri(
+  gl.TEXTURE_2D,
+  gl.TEXTURE_MIN_FILTER,
+  gl.LINEAR
+);
+
+gl.texParameteri(
+  gl.TEXTURE_2D,
+  gl.TEXTURE_MAG_FILTER,
+  gl.LINEAR
+);
 
 async function fetchPrismCards() {
   try {
@@ -69,7 +181,7 @@ function populateCardSelect(part) {
     const option = document.createElement("option");
 
     option.value = card.id;
-    option.textContent = `#${card.number} — ${card.title_en}`;
+    option.textContent = `#${card.number} — ${card.title_jp}`;
 
     cardSelect.appendChild(option);
   });
@@ -85,7 +197,7 @@ function displaySelectedCard(cardId) {
   });
 
   if (!selectedCard) {
-    cardPreview.classList.add("hidden");
+    glCanvas.classList.add("hidden");
 
     previewMessage.classList.remove("hidden");
     previewMessage.textContent = "No card selected.";
@@ -93,11 +205,156 @@ function displaySelectedCard(cardId) {
     return;
   }
 
-  cardPreview.src = selectedCard.front_image_url;
-  cardPreview.alt = `Dragon Ball Visual Adventure #${selectedCard.number} — ${selectedCard.title_en}`;
+  currentCardId = selectedCard.id;
 
-  previewMessage.classList.add("hidden");
-  cardPreview.classList.remove("hidden");
+  glCanvas.classList.add("hidden");
+
+  previewMessage.classList.remove("hidden");
+  previewMessage.textContent = "Loading card...";
+
+  const image = new Image();
+
+  image.crossOrigin = "anonymous";
+
+  image.addEventListener("load", function () {
+    if (currentCardId !== selectedCard.id) {
+      return;
+    }
+
+    renderCard(image);
+
+    previewMessage.classList.add("hidden");
+    glCanvas.classList.remove("hidden");
+  });
+
+  image.addEventListener("error", function () {
+    previewMessage.textContent = "Unable to load card image.";
+  });
+
+  image.src = selectedCard.front_image_url;
+}
+
+function renderCard(image) {
+  glCanvas.width = image.naturalWidth;
+  glCanvas.height = image.naturalHeight;
+
+  gl.viewport(
+    0,
+    0,
+    glCanvas.width,
+    glCanvas.height
+  );
+
+  gl.useProgram(program);
+
+  gl.bindBuffer(
+    gl.ARRAY_BUFFER,
+    positionBuffer
+  );
+
+  gl.enableVertexAttribArray(
+    positionLocation
+  );
+
+  gl.vertexAttribPointer(
+    positionLocation,
+    2,
+    gl.FLOAT,
+    false,
+    0,
+    0
+  );
+
+  gl.activeTexture(
+    gl.TEXTURE0
+  );
+
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    cardTexture
+  );
+
+  gl.pixelStorei(
+    gl.UNPACK_FLIP_Y_WEBGL,
+    true
+  );
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    image
+  );
+
+  gl.uniform1i(
+    textureLocation,
+    0
+  );
+
+  gl.drawArrays(
+    gl.TRIANGLE_STRIP,
+    0,
+    4
+  );
+}
+
+function createShader(type, source) {
+  const shader = gl.createShader(type);
+
+  gl.shaderSource(
+    shader,
+    source
+  );
+
+  gl.compileShader(shader);
+
+  const success = gl.getShaderParameter(
+    shader,
+    gl.COMPILE_STATUS
+  );
+
+  if (!success) {
+    const message = gl.getShaderInfoLog(shader);
+
+    gl.deleteShader(shader);
+
+    throw new Error(message);
+  }
+
+  return shader;
+}
+
+function createProgram(vertexShader, fragmentShader) {
+  const shaderProgram = gl.createProgram();
+
+  gl.attachShader(
+    shaderProgram,
+    vertexShader
+  );
+
+  gl.attachShader(
+    shaderProgram,
+    fragmentShader
+  );
+
+  gl.linkProgram(shaderProgram);
+
+  const success = gl.getProgramParameter(
+    shaderProgram,
+    gl.LINK_STATUS
+  );
+
+  if (!success) {
+    const message = gl.getProgramInfoLog(shaderProgram);
+
+    gl.deleteProgram(shaderProgram);
+
+    throw new Error(message);
+  }
+
+  return shaderProgram;
 }
 
 partSelect.addEventListener("change", function () {
