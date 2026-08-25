@@ -22,16 +22,16 @@
 </head>
 
 <body class="w-full min-h-screen p-2 flex flex-col justify-center items-center text-xs text-slate-900">
-    <div class="w-full max-w-6xl">
+    <div class="w-full max-w-7xl">
 
         <main class="grid grid-cols-1 xl:grid-cols-[260px_600px_300px] justify-center items-stretch gap-4">
             <!-- Card -->
-            <section class="order-2 lg:order-1 flex flex-col border border-slate-300 rounded-lg">
+            <section class="order-2 xl:order-1 flex flex-col border border-slate-300 rounded-lg">
                 <h2 class="w-full px-2 py-2 text-lg font-bold text-center border-b border-slate-300">
                     Card
                 </h2>
 
-                <div class="p-3">
+                <div class="p-3 flex flex-col gap-4">
                     <div class="p-3 flex flex-col gap-2">
                         <div class="flex flex-col">
                             <label for="partSelect">
@@ -55,13 +55,43 @@
                                     Choose a part first
                                 </option>
                             </select>
+
+
                         </div>
+                    </div>
+
+                    <div>
+                        <div class="mb-1 flex justify-between items-center">
+                            <span class="font-bold">
+                                Prism mask
+                            </span>
+
+                            <button id="clearMaskButton" class="text-sky-700 disabled:text-slate-300 cursor-pointer disabled:cursor-not-allowed" type="button" disabled>
+                                Remove
+                            </button>
+                        </div>
+
+                        <label for="maskInput" class="block p-3 border border-dashed border-slate-300 hover:border-sky-700 rounded-lg cursor-pointer">
+                            <p class="font-bold">
+                                Import mask
+                            </p>
+
+                            <p id="maskFileName" class="text-slate-500">
+                                No mask loaded
+                            </p>
+
+                            <p class="mt-1 text-[10px] text-slate-400">
+                                Black = none • White = Prism
+                            </p>
+
+                            <input id="maskInput" class="hidden" type="file" accept="image/png,image/jpeg,image/webp">
+                        </label>
                     </div>
                 </div>
             </section>
 
             <!-- Preview -->
-            <section class="order-1 lg:order-2 flex flex-col border border-slate-300 rounded-lg">
+            <section class="order-1 xl:order-2 flex flex-col border border-slate-300 rounded-lg">
                 <h1 class="w-full px-2 py-2 text-lg lg:text-2xl font-bold text-center border-b border-slate-300">
                     Dragon Ball Visual Adventure Prism Shader
                 </h1>
@@ -93,7 +123,7 @@
 
         <footer>
             <p class="mt-2 px-4 text-center">
-                This API is for educational and non-commercial purposes only.
+                This project is for educational and non-commercial purposes only.
                 Dragon Ball and related characters are trademarks of <a class="text-sky-700" href="https://fr.wikipedia.org/wiki/Akira_Toriyama" target="_blank">Akira Toriyama</a>, <a class="text-sky-700" href="https://fr.wikipedia.org/wiki/Bandai" target="_blank">Bandai</a> and <a class="text-sky-700" href="https://fr.wikipedia.org/wiki/Toei_Animation" target="_blank">Toei Animation</a>.
             </p>
         </footer>

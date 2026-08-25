@@ -7,6 +7,10 @@ const previewMessage = document.getElementById("previewMessage");
 const stage = document.getElementById("stage");
 const motionEnabled = document.getElementById("motionEnabled");
 
+const maskInput = document.getElementById("maskInput");
+const maskFileName = document.getElementById("maskFileName");
+const clearMaskButton = document.getElementById("clearMaskButton");
+
 let prismCards = [];
 let currentCardId = "";
 
@@ -44,6 +48,8 @@ const fragmentShaderSource = `
     precision mediump float;
 
     uniform sampler2D u_texture;
+    uniform sampler2D u_maskTexture;
+
     uniform vec2 u_resolution;
     uniform vec2 u_tilt;
 
@@ -108,6 +114,11 @@ const fragmentShaderSource = `
             u_texture,
             v_uv
         );
+
+        float foilVisibility = texture2D(
+            u_maskTexture,
+            v_uv
+        ).r;
 
         vec2 imagePx = vec2(
             v_uv.x * u_resolution.x,
@@ -313,6 +324,8 @@ const fragmentShaderSource = `
 
         reflectedColor += prismColor * foilEnergy * 0.28;
 
+        reflectedColor *= foilVisibility;
+
         vec3 result = 1.0 - (
             1.0 - baseColor.rgb
         ) * (
@@ -322,6 +335,8 @@ const fragmentShaderSource = `
         float silverFlash = sharpReflection * 0.24;
 
         silverFlash += diagonalLine * sharpReflection * 0.12;
+
+        silverFlash *= foilVisibility;
 
         result += vec3(
             silverFlash
@@ -365,6 +380,11 @@ const textureLocation = gl.getUniformLocation(
   "u_texture"
 );
 
+const maskTextureLocation = gl.getUniformLocation(
+  program,
+  "u_maskTexture"
+);
+
 const resolutionLocation = gl.getUniformLocation(
   program,
   "u_resolution"
@@ -394,42 +414,28 @@ gl.bufferData(
 );
 
 const cardTexture = gl.createTexture();
+const maskTexture = gl.createTexture();
 
-gl.bindTexture(
-  gl.TEXTURE_2D,
+configureTexture(
   cardTexture
 );
 
-gl.texParameteri(
-  gl.TEXTURE_2D,
-  gl.TEXTURE_WRAP_S,
-  gl.CLAMP_TO_EDGE
+configureTexture(
+  maskTexture
 );
 
-gl.texParameteri(
-  gl.TEXTURE_2D,
-  gl.TEXTURE_WRAP_T,
-  gl.CLAMP_TO_EDGE
-);
-
-gl.texParameteri(
-  gl.TEXTURE_2D,
-  gl.TEXTURE_MIN_FILTER,
-  gl.LINEAR
-);
-
-gl.texParameteri(
-  gl.TEXTURE_2D,
-  gl.TEXTURE_MAG_FILTER,
-  gl.LINEAR
-);
+resetMaskTexture();
 
 async function fetchPrismCards() {
   try {
-    const response = await fetch(API_URL);
+    const response = await fetch(
+      API_URL
+    );
 
     if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
+      throw new Error(
+        `HTTP error: ${response.status}`
+      );
     }
 
     const cards = await response.json();
@@ -440,7 +446,10 @@ async function fetchPrismCards() {
 
     populatePartSelect();
   } catch (error) {
-    console.error("Unable to load cards:", error);
+    console.error(
+      "Unable to load cards:",
+      error
+    );
 
     previewMessage.textContent = "Unable to load cards.";
   }
@@ -462,12 +471,16 @@ function populatePartSelect() {
   partSelect.innerHTML = "";
 
   parts.forEach(function (part) {
-    const option = document.createElement("option");
+    const option = document.createElement(
+      "option"
+    );
 
     option.value = part;
     option.textContent = `Part ${part}`;
 
-    partSelect.appendChild(option);
+    partSelect.appendChild(
+      option
+    );
   });
 
   partSelect.disabled = false;
@@ -485,7 +498,9 @@ function populateCardSelect(part) {
   cardSelect.innerHTML = "";
 
   cardsForPart.forEach(function (card) {
-    const option = document.createElement("option");
+    const option = document.createElement(
+      "option"
+    );
 
     option.value = card.id;
     option.textContent = `#${card.number} — ${card.title_jp}`;
@@ -582,6 +597,37 @@ function displaySelectedCard(cardId) {
   image.src = selectedCard.front_image_url;
 }
 
+function configureTexture(texture) {
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    texture
+  );
+
+  gl.texParameteri(
+    gl.TEXTURE_2D,
+    gl.TEXTURE_WRAP_S,
+    gl.CLAMP_TO_EDGE
+  );
+
+  gl.texParameteri(
+    gl.TEXTURE_2D,
+    gl.TEXTURE_WRAP_T,
+    gl.CLAMP_TO_EDGE
+  );
+
+  gl.texParameteri(
+    gl.TEXTURE_2D,
+    gl.TEXTURE_MIN_FILTER,
+    gl.LINEAR
+  );
+
+  gl.texParameteri(
+    gl.TEXTURE_2D,
+    gl.TEXTURE_MAG_FILTER,
+    gl.LINEAR
+  );
+}
+
 function renderCard(image) {
   glCanvas.width = image.naturalWidth;
   glCanvas.height = image.naturalHeight;
@@ -608,6 +654,91 @@ function renderCard(image) {
   cardTextureReady = true;
 
   renderScene();
+}
+
+function loadMask(file) {
+  const image = new Image();
+  const objectUrl = URL.createObjectURL(
+    file
+  );
+
+  image.addEventListener(
+    "load",
+    function () {
+      gl.bindTexture(
+        gl.TEXTURE_2D,
+        maskTexture
+      );
+
+      gl.pixelStorei(
+        gl.UNPACK_FLIP_Y_WEBGL,
+        true
+      );
+
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        image
+      );
+
+      maskFileName.textContent = file.name;
+      clearMaskButton.disabled = false;
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+    }
+  );
+
+  image.addEventListener(
+    "error",
+    function () {
+      console.error(
+        "Unable to load Prism mask."
+      );
+
+      URL.revokeObjectURL(
+        objectUrl
+      );
+    }
+  );
+
+  image.src = objectUrl;
+}
+
+function resetMaskTexture() {
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    maskTexture
+  );
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    1,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    new Uint8Array([
+      255,
+      255,
+      255,
+      255
+    ])
+  );
+}
+
+function clearMask() {
+  resetMaskTexture();
+
+  maskInput.value = "";
+  maskFileName.textContent = "No mask loaded";
+  clearMaskButton.disabled = true;
 }
 
 function renderScene() {
@@ -668,6 +799,20 @@ function renderScene() {
   gl.uniform1i(
     textureLocation,
     0
+  );
+
+  gl.activeTexture(
+    gl.TEXTURE1
+  );
+
+  gl.bindTexture(
+    gl.TEXTURE_2D,
+    maskTexture
+  );
+
+  gl.uniform1i(
+    maskTextureLocation,
+    1
   );
 
   gl.drawArrays(
@@ -809,6 +954,28 @@ cardSelect.addEventListener(
     displaySelectedCard(
       cardSelect.value
     );
+  }
+);
+
+maskInput.addEventListener(
+  "change",
+  function () {
+    const file = maskInput.files[0];
+
+    if (!file) {
+      return;
+    }
+
+    loadMask(
+      file
+    );
+  }
+);
+
+clearMaskButton.addEventListener(
+  "click",
+  function () {
+    clearMask();
   }
 );
 
