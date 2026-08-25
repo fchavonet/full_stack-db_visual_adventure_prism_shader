@@ -208,7 +208,9 @@
                         Loading card...
                     </p>
 
-                    <canvas id="glCanvas" class="hidden w-full max-w-[280px] h-auto"></canvas>
+                    <div id="cardShell" class="hidden w-full max-w-[280px]">
+                        <canvas id="glCanvas" class="block w-full h-auto"></canvas>
+                    </div>
 
                     <button id="motionPermissionButton" class="hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 px-3 py-2 rounded bg-sky-700 text-white hover:bg-sky-800 cursor-pointer shadow-lg" type="button">
                         <i class="bi bi-phone mr-1"></i>

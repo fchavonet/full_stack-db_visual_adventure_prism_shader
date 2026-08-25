@@ -6,6 +6,7 @@ const partSelect = document.getElementById("partSelect");
 const cardSelect = document.getElementById("cardSelect");
 
 const glCanvas = document.getElementById("glCanvas");
+const cardShell = document.getElementById("cardShell");
 const previewMessage = document.getElementById("previewMessage");
 const stage = document.getElementById("stage");
 
@@ -43,6 +44,10 @@ const prismOnly = document.getElementById("prismOnly");
 
 const tiltXValue = document.getElementById("tiltXValue");
 const tiltYValue = document.getElementById("tiltYValue");
+
+const desktopPointerQuery = window.matchMedia(
+  "(hover: hover) and (pointer: fine)"
+);
 
 const DEFAULT_SETTINGS = {
   cellSize: 150,
@@ -1011,7 +1016,7 @@ function displaySelectedCard(cardId) {
     currentCardId = "";
     cardTextureReady = false;
 
-    glCanvas.classList.add(
+    cardShell.classList.add(
       "hidden"
     );
 
@@ -1027,7 +1032,7 @@ function displaySelectedCard(cardId) {
   currentCardId = selectedCard.id;
   cardTextureReady = false;
 
-  glCanvas.classList.add(
+  cardShell.classList.add(
     "hidden"
   );
 
@@ -1056,7 +1061,7 @@ function displaySelectedCard(cardId) {
         "hidden"
       );
 
-      glCanvas.classList.remove(
+      cardShell.classList.remove(
         "hidden"
       );
     }
@@ -1070,6 +1075,10 @@ function displaySelectedCard(cardId) {
       }
 
       cardTextureReady = false;
+
+      cardShell.classList.add(
+        "hidden"
+      );
 
       previewMessage.classList.remove(
         "hidden"
@@ -1317,6 +1326,27 @@ function updateTiltOutputs() {
   tiltYValue.textContent = tiltY.toFixed(
     3
   );
+}
+
+function updateCardOrientation() {
+  if (!desktopPointerQuery.matches) {
+    cardShell.style.transform =
+      "perspective(1000px) rotateX(0deg) rotateY(0deg)";
+
+    return;
+  }
+
+  const rotationX = -tiltY * 5;
+  const rotationY = tiltX * 5;
+
+  cardShell.style.transform =
+    "perspective(1000px) " +
+    `rotateX(${rotationX}deg) ` +
+    `rotateY(${rotationY}deg)`;
+
+  cardShell.style.transformOrigin = "center";
+  cardShell.style.transformStyle = "preserve-3d";
+  cardShell.style.willChange = "transform";
 }
 
 function createPreset() {
@@ -2042,6 +2072,7 @@ function animate() {
   ) * smoothingValue;
 
   updateTiltOutputs();
+  updateCardOrientation();
   renderScene();
 
   requestAnimationFrame(
