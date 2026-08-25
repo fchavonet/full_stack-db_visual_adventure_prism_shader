@@ -122,30 +122,91 @@ const fragmentShaderSource = `
             }
         }
 
+        vec3 viewDirection = normalize(
+            vec3(
+                -u_tilt.x * 0.72,
+                u_tilt.y * 0.72,
+                1.45
+            )
+        );
+
         vec3 lightDirection = normalize(
             vec3(
-                -0.35 + u_tilt.x * 0.75,
-                0.45 + u_tilt.y * 0.75,
+                -0.42 + u_tilt.x * 0.10,
+                0.50 + u_tilt.y * 0.08,
                 1.0
             )
         );
 
-        float light = max(
+        vec3 halfDirection = normalize(
+            viewDirection + lightDirection
+        );
+
+        float ndh = max(
             dot(
                 normal,
-                lightDirection
+                halfDirection
             ),
             0.0
         );
 
-        vec3 geometryColor = vec3(
-            0.35 + light * 0.65
+        float ndv = max(
+            dot(
+                normal,
+                viewDirection
+            ),
+            0.0
         );
 
-        vec3 result = mix(
-            baseColor.rgb,
-            geometryColor,
-            0.22
+        float broadReflection = pow(
+            ndh,
+            4.2
+        );
+
+        float sharpReflection = pow(
+            ndh,
+            48.0
+        );
+
+        float grazingReflection = pow(
+            1.0 - ndv,
+            1.7
+        );
+
+        float foilEnergy = 0.0;
+
+        foilEnergy += broadReflection * 0.42;
+        foilEnergy += sharpReflection * 1.15;
+        foilEnergy += grazingReflection * 0.06;
+
+        foilEnergy = clamp(
+            foilEnergy,
+            0.0,
+            1.0
+        );
+
+        vec3 silverReflection = vec3(
+            0.92,
+            0.95,
+            1.0
+        ) * foilEnergy;
+
+        vec3 result = 1.0 - (
+            1.0 - baseColor.rgb
+        ) * (
+            1.0 - silverReflection
+        );
+
+        float silverFlash = sharpReflection * 0.24;
+
+        result += vec3(
+            silverFlash
+        );
+
+        result = clamp(
+            result,
+            0.0,
+            1.0
         );
 
         gl_FragColor = vec4(
