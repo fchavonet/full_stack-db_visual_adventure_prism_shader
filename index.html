@@ -144,12 +144,17 @@
                     Dragon Ball Visual Adventure Prism Shader
                 </h1>
 
-                <div id="stage" class="min-h-[470px] p-4 flex justify-center items-center">
+                <div id="stage" class="relative min-h-[470px] p-4 flex justify-center items-center">
                     <p id="previewMessage" class="text-slate-500">
                         Loading card...
                     </p>
 
                     <canvas id="glCanvas" class="hidden w-full max-w-[280px] h-auto"></canvas>
+
+                    <button id="motionPermissionButton" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-2 rounded bg-sky-700 text-white hover:bg-sky-800 cursor-pointer" type="button">
+                        <i class="bi bi-phone mr-1"></i>
+                        Enable motion
+                    </button>
                 </div>
             </section>
 

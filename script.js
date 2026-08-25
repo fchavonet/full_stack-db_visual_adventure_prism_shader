@@ -33,6 +33,7 @@ const broadReflection = document.getElementById("broadReflection");
 const motionAmplitude = document.getElementById("motionAmplitude");
 const smoothing = document.getElementById("smoothing");
 const motionEnabled = document.getElementById("motionEnabled");
+const motionPermissionButton = document.getElementById("motionPermissionButton");
 
 const showMask = document.getElementById("showMask");
 const showGrid = document.getElementById("showGrid");
@@ -147,6 +148,11 @@ let tiltY = 0;
 
 let targetTiltX = 0;
 let targetTiltY = 0;
+
+let deviceMotionActive = false;
+
+let motionBaseBeta = null;
+let motionBaseGamma = null;
 
 const gl = glCanvas.getContext("webgl");
 
@@ -1326,6 +1332,8 @@ function applyPreset(preset) {
   targetTiltX = 0;
   targetTiltY = 0;
 
+  resetMotionCalibration();
+
   updateAllRangeOutputs();
 
   if (
@@ -1491,6 +1499,8 @@ function restoreDefaults() {
 
   targetTiltX = 0;
   targetTiltY = 0;
+
+  resetMotionCalibration();
 
   updateAllRangeOutputs();
 }
@@ -1740,8 +1750,195 @@ function createProgram(vertexShader, fragmentShader) {
   return shaderProgram;
 }
 
+function clamp(value, minimum, maximum) {
+  return Math.min(
+    Math.max(
+      value,
+      minimum
+    ),
+    maximum
+  );
+}
+
+function normalizeAngle(angle) {
+  let normalizedAngle = angle;
+
+  while (normalizedAngle > 180) {
+    normalizedAngle -= 360;
+  }
+
+  while (normalizedAngle < -180) {
+    normalizedAngle += 360;
+  }
+
+  return normalizedAngle;
+}
+
+function getScreenOrientationAngle() {
+  if (
+    screen.orientation &&
+    typeof screen.orientation.angle === "number"
+  ) {
+    return screen.orientation.angle;
+  }
+
+  if (typeof window.orientation === "number") {
+    return window.orientation;
+  }
+
+  return 0;
+}
+
+function resetMotionCalibration() {
+  motionBaseBeta = null;
+  motionBaseGamma = null;
+}
+
+function updateDeviceOrientation(event) {
+  if (!motionEnabled.checked) {
+    return;
+  }
+
+  if (
+    typeof event.beta !== "number" ||
+    typeof event.gamma !== "number"
+  ) {
+    return;
+  }
+
+  if (
+    motionBaseBeta === null ||
+    motionBaseGamma === null
+  ) {
+    motionBaseBeta = event.beta;
+    motionBaseGamma = event.gamma;
+
+    return;
+  }
+
+  const betaDelta = normalizeAngle(
+    event.beta - motionBaseBeta
+  );
+
+  const gammaDelta = normalizeAngle(
+    event.gamma - motionBaseGamma
+  );
+
+  let motionX = clamp(
+    gammaDelta / 22,
+    -1,
+    1
+  );
+
+  let motionY = clamp(
+    betaDelta / 22,
+    -1,
+    1
+  );
+
+  const screenAngle = getScreenOrientationAngle();
+
+  let orientedX = motionX;
+  let orientedY = motionY;
+
+  if (screenAngle === 90) {
+    orientedX = motionY;
+    orientedY = -motionX;
+  } else if (
+    screenAngle === -90 ||
+    screenAngle === 270
+  ) {
+    orientedX = -motionY;
+    orientedY = motionX;
+  } else if (
+    screenAngle === 180 ||
+    screenAngle === -180
+  ) {
+    orientedX = -motionX;
+    orientedY = -motionY;
+  }
+
+  const amplitude = Number(
+    motionAmplitude.value
+  );
+
+  targetTiltX = orientedX * amplitude;
+  targetTiltY = orientedY * amplitude;
+}
+
+function enableDeviceOrientation() {
+  if (deviceMotionActive) {
+    return;
+  }
+
+  window.addEventListener(
+    "deviceorientation",
+    updateDeviceOrientation,
+    true
+  );
+
+  deviceMotionActive = true;
+
+  resetMotionCalibration();
+}
+
+async function requestDeviceOrientationPermission() {
+  if (typeof window.DeviceOrientationEvent === "undefined") {
+    return;
+  }
+
+  if (
+    typeof window.DeviceOrientationEvent.requestPermission !== "function"
+  ) {
+    enableDeviceOrientation();
+
+    return;
+  }
+
+  try {
+    const permission = await window.DeviceOrientationEvent.requestPermission();
+
+    if (permission !== "granted") {
+      return;
+    }
+
+    enableDeviceOrientation();
+
+    motionPermissionButton.classList.add(
+      "hidden"
+    );
+  } catch (error) {
+    console.error(
+      "Unable to enable device motion:",
+      error
+    );
+  }
+}
+
+function setupDeviceOrientation() {
+  if (typeof window.DeviceOrientationEvent === "undefined") {
+    return;
+  }
+
+  if (
+    typeof window.DeviceOrientationEvent.requestPermission === "function"
+  ) {
+    motionPermissionButton.classList.remove(
+      "hidden"
+    );
+
+    return;
+  }
+
+  enableDeviceOrientation();
+}
+
 function updatePointer(event) {
   if (!motionEnabled.checked) {
+    return;
+  }
+
+  if (event.pointerType === "touch") {
     return;
   }
 
@@ -1891,6 +2088,10 @@ stage.addEventListener(
 stage.addEventListener(
   "pointerleave",
   function () {
+    if (deviceMotionActive) {
+      return;
+    }
+
     targetTiltX = 0;
     targetTiltY = 0;
   }
@@ -1899,14 +2100,32 @@ stage.addEventListener(
 motionEnabled.addEventListener(
   "change",
   function () {
-    if (motionEnabled.checked) {
-      return;
-    }
-
     targetTiltX = 0;
     targetTiltY = 0;
+
+    if (motionEnabled.checked) {
+      resetMotionCalibration();
+
+      return;
+    }
   }
 );
+
+motionPermissionButton.addEventListener(
+  "click",
+  function () {
+    requestDeviceOrientationPermission();
+  }
+);
+
+window.addEventListener(
+  "orientationchange",
+  function () {
+    resetMotionCalibration();
+  }
+);
+
+setupDeviceOrientation();
 
 fetchPrismCards();
 animate();
