@@ -26,6 +26,10 @@ const motionAmplitude = document.getElementById("motionAmplitude");
 const smoothing = document.getElementById("smoothing");
 const motionEnabled = document.getElementById("motionEnabled");
 
+const showMask = document.getElementById("showMask");
+const showGrid = document.getElementById("showGrid");
+const prismOnly = document.getElementById("prismOnly");
+
 let prismCards = [];
 let currentCardId = "";
 
@@ -81,6 +85,10 @@ const fragmentShaderSource = `
     uniform float u_broadReflection;
 
     uniform float u_useMask;
+
+    uniform float u_showMask;
+    uniform float u_showGrid;
+    uniform float u_prismOnly;
 
     varying vec2 v_uv;
 
@@ -245,17 +253,28 @@ const fragmentShaderSource = `
             0.18 * neutralMask
         );
 
+        float maskValue = 1.0;
+
         if (u_useMask > 0.5) {
             vec4 maskTexel = texture2D(
                 u_maskTexture,
                 uv
             );
 
-            float maskValue = luminance(
+            maskValue = luminance(
                 maskTexel.rgb
             );
 
             foilVisibility *= maskValue;
+        }
+
+        if (u_showMask > 0.5) {
+            gl_FragColor = vec4(
+                vec3(maskValue),
+                1.0
+            );
+
+            return;
         }
 
         vec2 imagePx = vec2(
@@ -454,6 +473,27 @@ const fragmentShaderSource = `
             diagonalDistance
         );
 
+        float edgeX = min(
+            fract(cellCoord.x),
+            1.0 - fract(cellCoord.x)
+        );
+
+        float edgeY = min(
+            fract(cellCoord.y),
+            1.0 - fract(cellCoord.y)
+        );
+
+        float edgeDistance = min(
+            edgeX,
+            edgeY
+        );
+
+        float cellBorder = 1.0 - smoothstep(
+            0.0,
+            0.018,
+            edgeDistance
+        );
+
         float foilEnergy = (
             broad *
             u_broadReflection
@@ -546,6 +586,57 @@ const fragmentShaderSource = `
         result += vec3(
             silverKick
         );
+
+        if (u_prismOnly > 0.5) {
+            vec3 materialBase = vec3(
+                0.24,
+                0.25,
+                0.27
+            );
+
+            vec3 materialReflection = (
+                prismColor *
+                foilEnergy
+            );
+
+            result = materialBase * (
+                0.74 +
+                broad *
+                0.34
+            );
+
+            result = 1.0 - (
+                1.0 - result
+            ) * (
+                1.0 - (
+                    materialReflection *
+                    maskValue
+                )
+            );
+
+            result += vec3(
+                sharp *
+                u_silverFlash *
+                0.82
+            );
+        }
+
+        if (u_showGrid > 0.5) {
+            float gridLine = max(
+                cellBorder,
+                diagonalLine * 0.45
+            );
+
+            result = mix(
+                result,
+                vec3(
+                    0.02,
+                    0.52,
+                    0.82
+                ),
+                gridLine * 0.68
+            );
+        }
 
         result = max(
             result,
@@ -652,6 +743,21 @@ const broadReflectionLocation = gl.getUniformLocation(
 const useMaskLocation = gl.getUniformLocation(
   program,
   "u_useMask"
+);
+
+const showMaskLocation = gl.getUniformLocation(
+  program,
+  "u_showMask"
+);
+
+const showGridLocation = gl.getUniformLocation(
+  program,
+  "u_showGrid"
+);
+
+const prismOnlyLocation = gl.getUniformLocation(
+  program,
+  "u_prismOnly"
 );
 
 const positionBuffer = gl.createBuffer();
@@ -1189,6 +1295,39 @@ function renderScene() {
   gl.uniform1f(
     useMaskLocation,
     useMask
+  );
+
+  let showMaskValue = 0;
+
+  if (showMask.checked) {
+    showMaskValue = 1;
+  }
+
+  gl.uniform1f(
+    showMaskLocation,
+    showMaskValue
+  );
+
+  let showGridValue = 0;
+
+  if (showGrid.checked) {
+    showGridValue = 1;
+  }
+
+  gl.uniform1f(
+    showGridLocation,
+    showGridValue
+  );
+
+  let prismOnlyValue = 0;
+
+  if (prismOnly.checked) {
+    prismOnlyValue = 1;
+  }
+
+  gl.uniform1f(
+    prismOnlyLocation,
+    prismOnlyValue
   );
 
   gl.bindBuffer(
