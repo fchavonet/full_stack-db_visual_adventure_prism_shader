@@ -97,12 +97,12 @@ You can also test the project online by clicking [here](https://fchavonet.github
     <tr valign="top">
         <td align="center">
             <picture>
-                <img src="" alt="Desktop Screenshot" width="100%">
+                <img src="./assets/images/screenshots/desktop_page_screenshot.webp" alt="Desktop Screenshot" width="100%">
             </picture>
         </td>
         <td align="center">
             <picture>
-                <img src="" alt="Mobile Screenshot" width="100%">
+                <img src="./assets/images/screenshots/mobile_page_screenshot.webp" alt="Mobile Screenshot" width="100%">
             </picture>
         </td>
     </tr>
