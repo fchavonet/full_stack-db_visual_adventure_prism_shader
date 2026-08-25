@@ -2,19 +2,35 @@ const API_URL = "https://fchavonet.github.io/full_stack-db_visual_adventure_card
 
 const partSelect = document.getElementById("partSelect");
 const cardSelect = document.getElementById("cardSelect");
+
 const glCanvas = document.getElementById("glCanvas");
 const previewMessage = document.getElementById("previewMessage");
 const stage = document.getElementById("stage");
-const motionEnabled = document.getElementById("motionEnabled");
 
 const maskInput = document.getElementById("maskInput");
 const maskFileName = document.getElementById("maskFileName");
 const clearMaskButton = document.getElementById("clearMaskButton");
 
+const cellSize = document.getElementById("cellSize");
+const gridOffsetX = document.getElementById("gridOffsetX");
+const gridOffsetY = document.getElementById("gridOffsetY");
+const facetSlope = document.getElementById("facetSlope");
+
+const intensity = document.getElementById("intensity");
+const saturation = document.getElementById("saturation");
+const gloss = document.getElementById("gloss");
+const silverFlash = document.getElementById("silverFlash");
+const broadReflection = document.getElementById("broadReflection");
+
+const motionAmplitude = document.getElementById("motionAmplitude");
+const smoothing = document.getElementById("smoothing");
+const motionEnabled = document.getElementById("motionEnabled");
+
 let prismCards = [];
 let currentCardId = "";
 
 let cardTextureReady = false;
+let maskLoaded = false;
 
 let tiltX = 0;
 let tiltY = 0;
@@ -45,7 +61,7 @@ const vertexShaderSource = `
 `;
 
 const fragmentShaderSource = `
-    precision mediump float;
+    precision highp float;
 
     uniform sampler2D u_texture;
     uniform sampler2D u_maskTexture;
@@ -53,10 +69,82 @@ const fragmentShaderSource = `
     uniform vec2 u_resolution;
     uniform vec2 u_tilt;
 
+    uniform float u_cellSize;
+    uniform float u_gridOffsetX;
+    uniform float u_gridOffsetY;
+    uniform float u_facetSlope;
+
+    uniform float u_intensity;
+    uniform float u_saturation;
+    uniform float u_gloss;
+    uniform float u_silverFlash;
+    uniform float u_broadReflection;
+
+    uniform float u_useMask;
+
     varying vec2 v_uv;
 
+    float luminance(vec3 color) {
+        return dot(
+            color,
+            vec3(
+                0.2126,
+                0.7152,
+                0.0722
+            )
+        );
+    }
+
+    float saturationOf(vec3 color) {
+        float highValue = max(
+            color.r,
+            max(
+                color.g,
+                color.b
+            )
+        );
+
+        float lowValue = min(
+            color.r,
+            min(
+                color.g,
+                color.b
+            )
+        );
+
+        float value = 0.0;
+
+        if (highValue > 0.0001) {
+            value = (
+                highValue - lowValue
+            ) / highValue;
+        }
+
+        return value;
+    }
+
+    float hash21(vec2 position) {
+        position = fract(
+            position * vec2(
+                123.34,
+                456.21
+            )
+        );
+
+        position += dot(
+            position,
+            position + 45.32
+        );
+
+        return fract(
+            position.x * position.y
+        );
+    }
+
     vec3 spectral(float phase) {
-        float value = fract(phase);
+        float value = fract(
+            phase
+        );
 
         vec3 color;
 
@@ -91,50 +179,98 @@ const fragmentShaderSource = `
         return color;
     }
 
-    float hash21(vec2 position) {
-        position = fract(
-            position * vec2(
-                123.34,
-                456.21
-            )
-        );
-
-        position += dot(
-            position,
-            position + 45.32
-        );
-
-        return fract(
-            position.x * position.y
-        );
-    }
-
     void main() {
-        vec4 baseColor = texture2D(
+        vec2 uv = v_uv;
+
+        vec4 texel = texture2D(
             u_texture,
-            v_uv
+            uv
         );
 
-        float foilVisibility = texture2D(
-            u_maskTexture,
-            v_uv
-        ).r;
+        if (texel.a < 0.01) {
+            discard;
+        }
+
+        vec3 base = texel.rgb;
+
+        float baseLuminance = luminance(
+            base
+        );
+
+        float baseSaturation = saturationOf(
+            base
+        );
+
+        float foilVisibility = smoothstep(
+            0.035,
+            0.66,
+            baseLuminance
+        );
+
+        float coloredInk = smoothstep(
+            0.18,
+            0.92,
+            baseSaturation
+        );
+
+        float inkProtection = 1.0 - (
+            0.72 *
+            coloredInk *
+            0.38
+        );
+
+        foilVisibility *= inkProtection;
+
+        vec3 neutralSilver = vec3(
+            baseLuminance * 0.97,
+            baseLuminance * 0.985,
+            baseLuminance
+        );
+
+        float neutralMask = smoothstep(
+            0.34,
+            0.88,
+            baseLuminance
+        );
+
+        neutralMask *= (
+            1.0 -
+            coloredInk *
+            0.58
+        );
+
+        base = mix(
+            base,
+            neutralSilver,
+            0.18 * neutralMask
+        );
+
+        if (u_useMask > 0.5) {
+            vec4 maskTexel = texture2D(
+                u_maskTexture,
+                uv
+            );
+
+            float maskValue = luminance(
+                maskTexel.rgb
+            );
+
+            foilVisibility *= maskValue;
+        }
 
         vec2 imagePx = vec2(
-            v_uv.x * u_resolution.x,
-            (1.0 - v_uv.y) * u_resolution.y
+            uv.x * u_resolution.x,
+            (1.0 - uv.y) * u_resolution.y
         );
 
-        float cellSize = 150.0;
-
         vec2 gridOffset = vec2(
-            96.0,
-            104.0
+            u_gridOffsetX,
+            u_gridOffsetY
         );
 
         vec2 cellCoord = (
             imagePx - gridOffset
-        ) / cellSize;
+        ) / u_cellSize;
 
         vec2 cellId = floor(
             cellCoord
@@ -152,8 +288,6 @@ const fragmentShaderSource = `
             p.y
         );
 
-        float facetSlope = 0.42;
-
         vec3 normal = vec3(
             0.0,
             0.0,
@@ -166,7 +300,7 @@ const fragmentShaderSource = `
             if (p.x >= 0.0) {
                 normal = normalize(
                     vec3(
-                        facetSlope,
+                        u_facetSlope,
                         0.0,
                         1.0
                     )
@@ -176,7 +310,7 @@ const fragmentShaderSource = `
             } else {
                 normal = normalize(
                     vec3(
-                        -facetSlope,
+                        -u_facetSlope,
                         0.0,
                         1.0
                     )
@@ -189,7 +323,7 @@ const fragmentShaderSource = `
                 normal = normalize(
                     vec3(
                         0.0,
-                        facetSlope,
+                        u_facetSlope,
                         1.0
                     )
                 );
@@ -199,7 +333,7 @@ const fragmentShaderSource = `
                 normal = normalize(
                     vec3(
                         0.0,
-                        -facetSlope,
+                        -u_facetSlope,
                         1.0
                     )
                 );
@@ -225,7 +359,8 @@ const fragmentShaderSource = `
         );
 
         vec3 halfDirection = normalize(
-            viewDirection + lightDirection
+            viewDirection +
+            lightDirection
         );
 
         float ndh = max(
@@ -244,42 +379,19 @@ const fragmentShaderSource = `
             0.0
         );
 
-        float broadReflection = pow(
+        float sharp = pow(
+            ndh,
+            u_gloss
+        );
+
+        float broad = pow(
             ndh,
             4.2
         );
 
-        float sharpReflection = pow(
-            ndh,
-            48.0
-        );
-
-        float grazingReflection = pow(
+        float grazing = pow(
             1.0 - ndv,
             1.7
-        );
-
-        float diagonalDistance = abs(
-            ax - ay
-        );
-
-        float diagonalLine = 1.0 - smoothstep(
-            0.0,
-            0.035,
-            diagonalDistance
-        );
-
-        float foilEnergy = 0.0;
-
-        foilEnergy += broadReflection * 0.42;
-        foilEnergy += sharpReflection * 1.15;
-        foilEnergy += grazingReflection * 0.06;
-        foilEnergy += diagonalLine * sharpReflection * 0.20;
-
-        foilEnergy = clamp(
-            foilEnergy,
-            0.0,
-            1.0
         );
 
         float localRamp = p.x;
@@ -288,69 +400,166 @@ const fragmentShaderSource = `
             localRamp = p.y;
         }
 
-        float cellVariation = hash21(
+        float cellJitter = hash21(
             cellId
-        );
+        ) - 0.5;
 
-        float spectralPhase = facetIndex;
+        float diffractionPhase = facetIndex;
 
-        spectralPhase += localRamp * 0.42;
-
-        spectralPhase += dot(
+        diffractionPhase += dot(
             halfDirection.xy,
             vec2(
-                0.32,
-                -0.28
+                1.85,
+                -1.42
+            )
+        ) * 0.73;
+
+        diffractionPhase += (
+            localRamp *
+            0.19
+        );
+
+        diffractionPhase += (
+            cellJitter *
+            0.025
+        );
+
+        diffractionPhase += (
+            u_tilt.x *
+            0.11
+        );
+
+        diffractionPhase -= (
+            u_tilt.y *
+            0.07
+        );
+
+        vec3 rainbow = spectral(
+            diffractionPhase
+        );
+
+        vec3 prismColor = mix(
+            vec3(1.0),
+            rainbow,
+            u_saturation * 0.74
+        );
+
+        float diagonalDistance = abs(
+            ax - ay
+        );
+
+        float diagonalLine = 1.0 - smoothstep(
+            0.0,
+            0.018,
+            diagonalDistance
+        );
+
+        float foilEnergy = (
+            broad *
+            u_broadReflection
+        );
+
+        foilEnergy += (
+            sharp *
+            1.18
+        );
+
+        foilEnergy += (
+            grazing *
+            0.08
+        );
+
+        foilEnergy += (
+            diagonalLine *
+            sharp *
+            0.20
+        );
+
+        float micro = sin(
+            (
+                imagePx.x +
+                imagePx.y
+            ) * 0.42
+        );
+
+        micro *= sin(
+            (
+                imagePx.x -
+                imagePx.y
+            ) * 0.37
+        );
+
+        micro = (
+            micro *
+            0.5
+        ) + 0.5;
+
+        foilEnergy *= (
+            0.94 +
+            micro *
+            0.06
+        );
+
+        foilEnergy *= u_intensity;
+
+        vec3 result = base;
+
+        float shade = (
+            0.90 +
+            broad *
+            0.15
+        );
+
+        result *= mix(
+            1.0,
+            shade,
+            foilVisibility * 0.55
+        );
+
+        vec3 reflected = (
+            prismColor *
+            foilEnergy
+        );
+
+        reflected *= (
+            0.60 +
+            baseLuminance *
+            0.55
+        );
+
+        result = 1.0 - (
+            1.0 - result
+        ) * (
+            1.0 - (
+                reflected *
+                foilVisibility
             )
         );
 
-        spectralPhase += (
-            u_tilt.x - u_tilt.y
-        ) * 0.14;
-
-        spectralPhase += cellVariation * 0.08;
-
-        vec3 prismColor = spectral(
-            spectralPhase
+        float silverKick = (
+            sharp *
+            u_intensity *
+            foilVisibility *
+            u_silverFlash
         );
-
-        vec3 silverColor = vec3(
-            0.92,
-            0.95,
-            1.0
-        );
-
-        vec3 reflectedColor = silverColor * foilEnergy;
-
-        reflectedColor += prismColor * foilEnergy * 0.28;
-
-        reflectedColor *= foilVisibility;
-
-        vec3 result = 1.0 - (
-            1.0 - baseColor.rgb
-        ) * (
-            1.0 - reflectedColor
-        );
-
-        float silverFlash = sharpReflection * 0.24;
-
-        silverFlash += diagonalLine * sharpReflection * 0.12;
-
-        silverFlash *= foilVisibility;
 
         result += vec3(
-            silverFlash
+            silverKick
         );
 
-        result = clamp(
+        result = max(
             result,
-            0.0,
-            1.0
+            vec3(0.0)
+        );
+
+        result = pow(
+            result,
+            vec3(0.96)
         );
 
         gl_FragColor = vec4(
             result,
-            baseColor.a
+            texel.a
         );
     }
 `;
@@ -395,6 +604,56 @@ const tiltLocation = gl.getUniformLocation(
   "u_tilt"
 );
 
+const cellSizeLocation = gl.getUniformLocation(
+  program,
+  "u_cellSize"
+);
+
+const gridOffsetXLocation = gl.getUniformLocation(
+  program,
+  "u_gridOffsetX"
+);
+
+const gridOffsetYLocation = gl.getUniformLocation(
+  program,
+  "u_gridOffsetY"
+);
+
+const facetSlopeLocation = gl.getUniformLocation(
+  program,
+  "u_facetSlope"
+);
+
+const intensityLocation = gl.getUniformLocation(
+  program,
+  "u_intensity"
+);
+
+const saturationLocation = gl.getUniformLocation(
+  program,
+  "u_saturation"
+);
+
+const glossLocation = gl.getUniformLocation(
+  program,
+  "u_gloss"
+);
+
+const silverFlashLocation = gl.getUniformLocation(
+  program,
+  "u_silverFlash"
+);
+
+const broadReflectionLocation = gl.getUniformLocation(
+  program,
+  "u_broadReflection"
+);
+
+const useMaskLocation = gl.getUniformLocation(
+  program,
+  "u_useMask"
+);
+
 const positionBuffer = gl.createBuffer();
 
 gl.bindBuffer(
@@ -425,6 +684,7 @@ configureTexture(
 );
 
 resetMaskTexture();
+configureRangeControls();
 
 async function fetchPrismCards() {
   try {
@@ -460,7 +720,9 @@ function populatePartSelect() {
 
   prismCards.forEach(function (card) {
     if (!parts.includes(card.part)) {
-      parts.push(card.part);
+      parts.push(
+        card.part
+      );
     }
   });
 
@@ -658,6 +920,7 @@ function renderCard(image) {
 
 function loadMask(file) {
   const image = new Image();
+
   const objectUrl = URL.createObjectURL(
     file
   );
@@ -683,6 +946,8 @@ function loadMask(file) {
         gl.UNSIGNED_BYTE,
         image
       );
+
+      maskLoaded = true;
 
       maskFileName.textContent = file.name;
       clearMaskButton.disabled = false;
@@ -736,9 +1001,110 @@ function resetMaskTexture() {
 function clearMask() {
   resetMaskTexture();
 
+  maskLoaded = false;
+
   maskInput.value = "";
   maskFileName.textContent = "No mask loaded";
   clearMaskButton.disabled = true;
+}
+
+function configureRangeControls() {
+  const controls = [
+    {
+      input: cellSize,
+      output: document.getElementById("cellSizeValue"),
+      decimals: 0,
+      suffix: " px"
+    },
+    {
+      input: gridOffsetX,
+      output: document.getElementById("gridOffsetXValue"),
+      decimals: 0,
+      suffix: " px"
+    },
+    {
+      input: gridOffsetY,
+      output: document.getElementById("gridOffsetYValue"),
+      decimals: 0,
+      suffix: " px"
+    },
+    {
+      input: facetSlope,
+      output: document.getElementById("facetSlopeValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: intensity,
+      output: document.getElementById("intensityValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: saturation,
+      output: document.getElementById("saturationValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: gloss,
+      output: document.getElementById("glossValue"),
+      decimals: 0,
+      suffix: ""
+    },
+    {
+      input: silverFlash,
+      output: document.getElementById("silverFlashValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: broadReflection,
+      output: document.getElementById("broadReflectionValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: motionAmplitude,
+      output: document.getElementById("motionAmplitudeValue"),
+      decimals: 2,
+      suffix: ""
+    },
+    {
+      input: smoothing,
+      output: document.getElementById("smoothingValue"),
+      decimals: 3,
+      suffix: ""
+    }
+  ];
+
+  controls.forEach(function (control) {
+    updateRangeOutput(
+      control
+    );
+
+    control.input.addEventListener(
+      "input",
+      function () {
+        updateRangeOutput(
+          control
+        );
+      }
+    );
+  });
+}
+
+function updateRangeOutput(control) {
+  const value = Number(
+    control.input.value
+  );
+
+  control.output.textContent = (
+    value.toFixed(
+      control.decimals
+    ) +
+    control.suffix
+  );
 }
 
 function renderScene() {
@@ -767,6 +1133,62 @@ function renderScene() {
     tiltLocation,
     tiltX,
     tiltY
+  );
+
+  gl.uniform1f(
+    cellSizeLocation,
+    Number(cellSize.value)
+  );
+
+  gl.uniform1f(
+    gridOffsetXLocation,
+    Number(gridOffsetX.value)
+  );
+
+  gl.uniform1f(
+    gridOffsetYLocation,
+    Number(gridOffsetY.value)
+  );
+
+  gl.uniform1f(
+    facetSlopeLocation,
+    Number(facetSlope.value)
+  );
+
+  gl.uniform1f(
+    intensityLocation,
+    Number(intensity.value)
+  );
+
+  gl.uniform1f(
+    saturationLocation,
+    Number(saturation.value)
+  );
+
+  gl.uniform1f(
+    glossLocation,
+    Number(gloss.value)
+  );
+
+  gl.uniform1f(
+    silverFlashLocation,
+    Number(silverFlash.value)
+  );
+
+  gl.uniform1f(
+    broadReflectionLocation,
+    Number(broadReflection.value)
+  );
+
+  let useMask = 0;
+
+  if (maskLoaded) {
+    useMask = 1;
+  }
+
+  gl.uniform1f(
+    useMaskLocation,
+    useMask
   );
 
   gl.bindBuffer(
@@ -912,25 +1334,39 @@ function updatePointer(event) {
     event.clientY - rect.top
   ) / rect.height;
 
+  const amplitude = Number(
+    motionAmplitude.value
+  );
+
   targetTiltX = (
-    pointerX - 0.5
-  ) * 2.0;
+    (
+      pointerX - 0.5
+    ) *
+    2.0 *
+    amplitude
+  );
 
   targetTiltY = (
-    pointerY - 0.5
-  ) * 2.0;
+    (
+      pointerY - 0.5
+    ) *
+    2.0 *
+    amplitude
+  );
 }
 
 function animate() {
-  const smoothing = 0.08;
+  const smoothingValue = Number(
+    smoothing.value
+  );
 
   tiltX += (
     targetTiltX - tiltX
-  ) * smoothing;
+  ) * smoothingValue;
 
   tiltY += (
     targetTiltY - tiltY
-  ) * smoothing;
+  ) * smoothingValue;
 
   renderScene();
 

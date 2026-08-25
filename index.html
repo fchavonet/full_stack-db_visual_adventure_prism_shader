@@ -111,11 +111,143 @@
                     Settings
                 </h2>
 
-                <div class="p-3">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input id="motionEnabled" type="checkbox" class="accent-sky-700" checked>
-                        Enable motion
-                    </label>
+                <div class="p-3 flex flex-col gap-4">
+
+                    <!-- Prism geometry -->
+                    <div>
+                        <h3 class="mb-2 font-bold">
+                            Prism geometry
+                        </h3>
+
+                        <div class="flex flex-col gap-2">
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="cellSize">Square size</label>
+                                    <output id="cellSizeValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="cellSize" class="w-full accent-sky-700" type="range" min="60" max="260" step="1" value="150">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="gridOffsetX">Grid offset X</label>
+                                    <output id="gridOffsetXValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="gridOffsetX" class="w-full accent-sky-700" type="range" min="-300" max="400" step="1" value="190">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="gridOffsetY">Grid offset Y</label>
+                                    <output id="gridOffsetYValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="gridOffsetY" class="w-full accent-sky-700" type="range" min="-300" max="400" step="1" value="180">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="facetSlope">Facet relief</label>
+                                    <output id="facetSlopeValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="facetSlope" class="w-full accent-sky-700" type="range" min="0.05" max="0.9" step="0.01" value="0.50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-200">
+
+                    <!-- Optical response -->
+                    <div>
+                        <h3 class="mb-2 font-bold">
+                            Optical response
+                        </h3>
+
+                        <div class="flex flex-col gap-2">
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="intensity">Reflection intensity</label>
+                                    <output id="intensityValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="intensity" class="w-full accent-sky-700" type="range" min="0" max="2" step="0.01" value="0.95">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="saturation">Prismatic colors</label>
+                                    <output id="saturationValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="saturation" class="w-full accent-sky-700" type="range" min="0" max="1.5" step="0.01" value="0.60">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="gloss">Flash sharpness</label>
+                                    <output id="glossValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="gloss" class="w-full accent-sky-700" type="range" min="6" max="120" step="1" value="35">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="silverFlash">Silver / white flash</label>
+                                    <output id="silverFlashValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="silverFlash" class="w-full accent-sky-700" type="range" min="0" max="1.2" step="0.01" value="0.35">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="broadReflection">Broad reflection</label>
+                                    <output id="broadReflectionValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="broadReflection" class="w-full accent-sky-700" type="range" min="0" max="1.2" step="0.01" value="0.35">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-200">
+
+                    <!-- Motion -->
+                    <div>
+                        <h3 class="mb-2 font-bold">
+                            Motion
+                        </h3>
+
+                        <div class="flex flex-col gap-2">
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="motionAmplitude">Motion amplitude</label>
+                                    <output id="motionAmplitudeValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="motionAmplitude" class="w-full accent-sky-700" type="range" min="0" max="1.5" step="0.01" value="1">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between gap-2">
+                                    <label for="smoothing">Motion smoothing</label>
+                                    <output id="smoothingValue" class="font-mono text-sky-700"></output>
+                                </div>
+
+                                <input id="smoothing" class="w-full accent-sky-700" type="range" min="0.01" max="0.25" step="0.005" value="0.075">
+                            </div>
+                        </div>
+
+                        <label class="mt-2 flex items-center gap-2 cursor-pointer">
+                            <input id="motionEnabled" type="checkbox" class="accent-sky-700" checked>
+                            Enable motion
+                        </label>
+                    </div>
+
                 </div>
             </section>
 
