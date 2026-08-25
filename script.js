@@ -12,6 +12,8 @@ const stage = document.getElementById("stage");
 const maskInput = document.getElementById("maskInput");
 const maskFileName = document.getElementById("maskFileName");
 const clearMaskButton = document.getElementById("clearMaskButton");
+const maskThumb = document.getElementById("maskThumb");
+const maskEmpty = document.getElementById("maskEmpty");
 
 const exportPresetButton = document.getElementById("exportPresetButton");
 const presetInput = document.getElementById("presetInput");
@@ -39,16 +41,19 @@ const showMask = document.getElementById("showMask");
 const showGrid = document.getElementById("showGrid");
 const prismOnly = document.getElementById("prismOnly");
 
+const tiltXValue = document.getElementById("tiltXValue");
+const tiltYValue = document.getElementById("tiltYValue");
+
 const DEFAULT_SETTINGS = {
   cellSize: 150,
-  gridOffsetX: 175,
-  gridOffsetY: 195,
-  facetSlope: 0.42,
+  gridOffsetX: 190,
+  gridOffsetY: 180,
+  facetSlope: 0.50,
   intensity: 0.95,
-  saturation: 0.62,
-  gloss: 34,
-  silverFlash: 0.34,
-  broadReflection: 0.34,
+  saturation: 0.60,
+  gloss: 35,
+  silverFlash: 0.35,
+  broadReflection: 0.35,
   motionAmplitude: 1,
   smoothing: 0.075,
   motionEnabled: true,
@@ -1170,6 +1175,10 @@ function loadMask(file) {
       maskFileName.textContent = file.name;
       clearMaskButton.disabled = false;
 
+      updateMaskPreview(
+        file
+      );
+
       URL.revokeObjectURL(
         objectUrl
       );
@@ -1190,6 +1199,29 @@ function loadMask(file) {
   );
 
   image.src = objectUrl;
+}
+
+function updateMaskPreview(file) {
+  const reader = new FileReader();
+
+  reader.addEventListener(
+    "load",
+    function () {
+      maskThumb.src = reader.result;
+
+      maskEmpty.classList.add(
+        "hidden"
+      );
+
+      maskThumb.classList.remove(
+        "hidden"
+      );
+    }
+  );
+
+  reader.readAsDataURL(
+    file
+  );
 }
 
 function resetMaskTexture() {
@@ -1223,6 +1255,19 @@ function clearMask() {
 
   maskInput.value = "";
   maskFileName.textContent = "No mask loaded";
+
+  maskThumb.removeAttribute(
+    "src"
+  );
+
+  maskThumb.classList.add(
+    "hidden"
+  );
+
+  maskEmpty.classList.remove(
+    "hidden"
+  );
+
   clearMaskButton.disabled = true;
 }
 
@@ -1262,6 +1307,16 @@ function updateAllRangeOutputs() {
       control
     );
   });
+}
+
+function updateTiltOutputs() {
+  tiltXValue.textContent = tiltX.toFixed(
+    3
+  );
+
+  tiltYValue.textContent = tiltY.toFixed(
+    3
+  );
 }
 
 function createPreset() {
@@ -1986,6 +2041,7 @@ function animate() {
     targetTiltY - tiltY
   ) * smoothingValue;
 
+  updateTiltOutputs();
   renderScene();
 
   requestAnimationFrame(
